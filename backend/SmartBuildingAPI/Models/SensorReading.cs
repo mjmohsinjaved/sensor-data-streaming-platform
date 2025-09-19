@@ -5,13 +5,13 @@ namespace SmartBuildingAPI.Models
     // Compact struct - 24 bytes total (optimal for CPU cache)
     public readonly struct SensorReading
     {
-        public readonly long Timestamp;    // 8 bytes - Unix milliseconds
-        public readonly ushort SensorId;   // 2 bytes - numeric ID (supports 65k sensors)
-        public readonly SensorType Type;   // 1 byte  - enum
-        public readonly byte Floor;        // 1 byte  - floor number (1-255)
-        public readonly byte Zone;         // 1 byte  - zone number (1-255)
-        public readonly float Value;       // 4 bytes - sufficient precision
-        public readonly bool IsAnomaly;    // 1 byte
+        public long Timestamp { get; }    // 8 bytes - Unix milliseconds
+        public ushort SensorId { get; }   // 2 bytes - numeric ID (supports 65k sensors)
+        public SensorType Type { get; }   // 1 byte  - enum
+        public byte Floor { get; }        // 1 byte  - floor number (1-255)
+        public byte Zone { get; }         // 1 byte  - zone number (1-255)
+        public float Value { get; }       // 4 bytes - sufficient precision
+        public bool IsAnomaly { get; }    // 1 byte
         // Total: ~18 bytes, padded to 24
 
         public SensorReading(ushort sensorId, float value, SensorType type, byte floor, byte zone)
