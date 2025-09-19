@@ -15,12 +15,34 @@ namespace SmartBuildingAPI.Endpoints
             sensors.MapGet("/stats", (ISensorDataStore dataStore) =>
             {
                 var stats = dataStore.GetAllStatistics();
+
+                // Enhance statistics with type and unit information
+                var enhancedStats = stats.Select(s =>
+                {
+                    // Determine sensor type based on ID pattern:
+                    // IDs 1-10: Temperature, 11-20: Humidity, 21-30: CO2, 31-40: Occupancy, 41-50: Power
+                    var sensorType = GetSensorTypeFromId(s.SensorId);
+
+                    return new
+                    {
+                        sensorId = s.SensorId,
+                        type = sensorType.ToString(),
+                        unit = SensorMetadata.GetUnit(sensorType),
+                        min = s.Min,
+                        max = s.Max,
+                        average = s.Average,
+                        current = s.Current,
+                        count = s.Count,
+                        lastUpdate = s.LastUpdate
+                    };
+                }).ToArray();
+
                 return Results.Ok(new
                 {
                     timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                     totalReadings = dataStore.GetTotalReadings(),
                     sensorCount = stats.Length,
-                    statistics = stats
+                    statistics = enhancedStats
                 });
             })
             .WithName("GetAllStatistics")
@@ -35,11 +57,29 @@ namespace SmartBuildingAPI.Endpoints
                 }
 
                 var readings = dataStore.GetRecent(count);
+
+                // Transform readings to include string type names and units
+                var enhancedReadings = readings.Select(r =>
+                {
+                    var sensorType = GetSensorTypeFromId(r.SensorId);
+                    return new
+                    {
+                        timestamp = r.Timestamp,
+                        sensorId = r.SensorId,
+                        type = sensorType.ToString(),
+                        unit = SensorMetadata.GetUnit(sensorType),
+                        floor = r.Floor,
+                        zone = r.Zone,
+                        value = r.Value,
+                        isAnomaly = r.IsAnomaly
+                    };
+                }).ToArray();
+
                 return Results.Ok(new
                 {
                     timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                    count = readings.Length,
-                    readings = readings
+                    count = enhancedReadings.Length,
+                    readings = enhancedReadings
                 });
             })
             .WithName("GetRecentReadings")
@@ -53,7 +93,21 @@ namespace SmartBuildingAPI.Endpoints
                 {
                     return Results.NotFound($"No data found for sensor {sensorId}");
                 }
-                return Results.Ok(stats);
+
+                var sensorType = GetSensorTypeFromId(sensorId);
+
+                return Results.Ok(new
+                {
+                    sensorId = stats.SensorId,
+                    type = sensorType.ToString(),
+                    unit = SensorMetadata.GetUnit(sensorType),
+                    min = stats.Min,
+                    max = stats.Max,
+                    average = stats.Average,
+                    current = stats.Current,
+                    count = stats.Count,
+                    lastUpdate = stats.LastUpdate
+                });
             })
             .WithName("GetSensorStatistics")
             .WithSummary("Get statistics for a specific sensor");
@@ -67,12 +121,15 @@ namespace SmartBuildingAPI.Endpoints
                     return Results.NotFound($"No data found for sensor {sensorId}");
                 }
 
+                var sensorType = GetSensorTypeFromId(sensorId);
+
                 return Results.Ok(new
                 {
                     sensorId = sensorId,
+                    type = sensorType.ToString(),
                     value = stats.Current,
                     timestamp = stats.LastUpdate,
-                    unit = SensorMetadata.GetUnit((SensorType)(sensorId % 5 + 1))
+                    unit = SensorMetadata.GetUnit(sensorType)
                 });
             })
             .WithName("GetCurrentValue")
@@ -87,7 +144,22 @@ namespace SmartBuildingAPI.Endpoints
                 }
 
                 var allReadings = dataStore.GetRecent(1000);
-                var floorReadings = allReadings.Where(r => r.Floor == floor).ToArray();
+                var floorReadings = allReadings.Where(r => r.Floor == floor)
+                    .Select(r =>
+                    {
+                        var sensorType = GetSensorTypeFromId(r.SensorId);
+                        return new
+                        {
+                            timestamp = r.Timestamp,
+                            sensorId = r.SensorId,
+                            type = sensorType.ToString(),
+                            unit = SensorMetadata.GetUnit(sensorType),
+                            floor = r.Floor,
+                            zone = r.Zone,
+                            value = r.Value,
+                            isAnomaly = r.IsAnomaly
+                        };
+                    }).ToArray();
 
                 return Results.Ok(new
                 {
@@ -103,7 +175,18 @@ namespace SmartBuildingAPI.Endpoints
             sensors.MapGet("/type/{type}", (ISensorDataStore dataStore, SensorType type) =>
             {
                 var allReadings = dataStore.GetRecent(1000);
-                var typeReadings = allReadings.Where(r => r.Type == type).ToArray();
+                var typeReadings = allReadings.Where(r => r.Type == type)
+                    .Select(r => new
+                    {
+                        timestamp = r.Timestamp,
+                        sensorId = r.SensorId,
+                        type = type.ToString(),
+                        unit = SensorMetadata.GetUnit(type),
+                        floor = r.Floor,
+                        zone = r.Zone,
+                        value = r.Value,
+                        isAnomaly = r.IsAnomaly
+                    }).ToArray();
 
                 return Results.Ok(new
                 {
@@ -162,6 +245,17 @@ namespace SmartBuildingAPI.Endpoints
             })
             .WithName("ResetPerformance")
             .WithSummary("Reset performance counters");
+        }
+
+        // Helper method to determine sensor type from ID
+        // Pattern: IDs 1-10: Temperature, 11-20: Humidity, 21-30: CO2, 31-40: Occupancy, 41-50: Power
+        private static SensorType GetSensorTypeFromId(ushort sensorId)
+        {
+            if (sensorId <= 10) return SensorType.Temperature;
+            if (sensorId <= 20) return SensorType.Humidity;
+            if (sensorId <= 30) return SensorType.CO2;
+            if (sensorId <= 40) return SensorType.Occupancy;
+            return SensorType.PowerConsumption;
         }
     }
 }
