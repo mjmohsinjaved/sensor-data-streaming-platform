@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { SignalRService } from '../services/signalr/SignalRService';
-import type { ConnectionState, SensorData, Alert, ConnectionStatus } from '@/types/signalr.types';
+import type { ConnectionState, SensorData, Alert, ConnectionStatus } from '../types/signalr.types';
 import { HUB_METHODS } from '../config/signalr.config';
 
 interface SignalRContextType {

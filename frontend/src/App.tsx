@@ -1,15 +1,7 @@
-import './App.css';
-import { SignalRProvider } from './contexts/SignalRContext';
-import { SensorDashboard } from './components/SensorDashboard';
+import Dashboard from './components/Dashboard/Dashboard';
 
 function App() {
-  return (
-    <SignalRProvider autoConnect={false}>
-      <div className="App">
-        <SensorDashboard />
-      </div>
-    </SignalRProvider>
-  );
+  return <Dashboard />;
 }
 
 export default App;

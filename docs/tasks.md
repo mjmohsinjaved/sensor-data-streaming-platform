@@ -4,116 +4,116 @@
 
 ### 1.1 Project Setup & Configuration
 
-- [ ] 1.1.1 Create new .NET Core Web API project named "SmartBuildingAPI"
-- [ ] 1.1.2 Install Microsoft.AspNetCore.SignalR NuGet package
-- [ ] 1.1.3 Configure CORS policy for frontend communication
-- [ ] 1.1.4 Set up project folder structure (Controllers, Services, Models, Hubs)
+- [x] 1.1.1 Create new .NET Core Web API project named "SmartBuildingAPI"
+- [x] 1.1.2 Install Microsoft.AspNetCore.SignalR NuGet package
+- [x] 1.1.3 Configure CORS policy for frontend communication
+- [x] 1.1.4 Set up project folder structure (Controllers, Services, Models, Hubs)
 
 ### 1.2 Data Models & DTOs
 
-- [ ] 1.2.1 Create SensorReading model (Id, SensorId, Value, Timestamp, SensorType)
-- [ ] 1.2.2 Create SensorType enum (Temperature, Humidity, CO2, Occupancy, PowerConsumption)
-- [ ] 1.2.3 Create SensorStatistics model (Current, Min, Max, Average, Count)
-- [ ] 1.2.4 Create AnomalyAlert model (SensorId, Value, Threshold, Timestamp, AlertType)
-- [ ] 1.2.5 Create AlertType enum (HVACFailure, AbnormalEnergyUsage, AirQualityIssue, OccupancyAnomaly)
+- [x] 1.2.1 Create SensorReading model (Id, SensorId, Value, Timestamp, SensorType)
+- [x] 1.2.2 Create SensorType enum (Temperature, Humidity, CO2, Occupancy, PowerConsumption)
+- [x] 1.2.3 Create SensorStatistics model (Current, Min, Max, Average, Count)
+- [x] 1.2.4 Create AnomalyAlert model (SensorId, Value, Threshold, Timestamp, AlertType)
+- [x] 1.2.5 Create AlertType enum (HVACFailure, AbnormalEnergyUsage, AirQualityIssue, OccupancyAnomaly)
 
 ### 1.3 Core Services (No Dependencies)
 
-- [ ] 1.3.1 Create ISensorDataService interface
-- [ ] 1.3.2 Implement SensorDataService with in-memory data storage
-- [ ] 1.3.3 Create IAnomalyDetectionService interface
-- [ ] 1.3.4 Implement anomaly detection for HVAC failures, abnormal energy usage, and air quality issues
-- [ ] 1.3.5 Create IStatisticsService interface
-- [ ] 1.3.6 Implement statistics calculation service (min/max/avg/count)
+- [x] 1.3.1 Create ISensorDataService interface
+- [x] 1.3.2 Implement SensorDataService with in-memory data storage
+- [x] 1.3.3 Create IAnomalyDetectionService interface
+- [x] 1.3.4 Implement anomaly detection for HVAC failures, abnormal energy usage, and air quality issues
+- [x] 1.3.5 Create IStatisticsService interface
+- [x] 1.3.6 Implement statistics calculation service (min/max/avg/count)
 
 ### 1.4 Data Generation Service
 
-- [ ] 1.4.1 Create ISensorDataGenerator interface
-- [ ] 1.4.2 Implement realistic sensor data generator with configurable frequency
-- [ ] 1.4.3 Add realistic sensor value ranges (Temperature: 18-26°C, Humidity: 30-70%, CO2: 400-1000ppm, Occupancy: 0-50 people, Power: 0-100kW)
-- [ ] 1.4.4 Implement data generation background service
-- [ ] 1.4.5 Add configuration for generation rate (start with 100/sec, scalable to 1000/sec)
+- [x] 1.4.1 Create ISensorDataGenerator interface
+- [x] 1.4.2 Implement realistic sensor data generator with configurable frequency
+- [x] 1.4.3 Add realistic sensor value ranges (Temperature: 18-26°C, Humidity: 30-70%, CO2: 400-1000ppm, Occupancy: 0-50 people, Power: 0-100kW)
+- [x] 1.4.4 Implement data generation background service
+- [x] 1.4.5 Add configuration for generation rate (start with 100/sec, scalable to 1000/sec)
 
 ### 1.5 SignalR Hub Setup
 
-- [ ] 1.5.1 Create SensorDataHub class inheriting from Hub
-- [ ] 1.5.2 Implement connection management methods (OnConnectedAsync, OnDisconnectedAsync)
-- [ ] 1.5.3 Add methods for client subscription to specific sensor types
-- [ ] 1.5.4 Configure SignalR in Program.cs/Startup.cs
+- [x] 1.5.1 Create SensorDataHub class inheriting from Hub
+- [x] 1.5.2 Implement connection management methods (OnConnectedAsync, OnDisconnectedAsync)
+- [x] 1.5.3 Add methods for client subscription to specific sensor types
+- [x] 1.5.4 Configure SignalR in Program.cs/Startup.cs
 
 ### 1.6 REST API Controllers
 
-- [ ] 1.6.1 Create SensorController with GET endpoints for historical data
-- [ ] 1.6.2 Add endpoint to get current statistics
-- [ ] 1.6.3 Add endpoint to get sensor configuration/types
-- [ ] 1.6.4 Add basic error handling and validation
+- [x] 1.6.1 Create SensorController with GET endpoints for historical data
+- [x] 1.6.2 Add endpoint to get current statistics
+- [x] 1.6.3 Add endpoint to get sensor configuration/types
+- [x] 1.6.4 Add basic error handling and validation
 
 ## 2. Frontend Development (React) - Independent Tasks
 
 ### 2.1 Project Setup & Configuration
 
 - [x] 2.1.1 Create React app using vite
-- [ ] 2.1.2 Install required packages (@microsoft/signalr, chart.js, react-chartjs-2)
-- [ ] 2.1.3 Set up project folder structure (components, services, utils, types)
-- [ ] 2.1.4 Configure TypeScript
+- [x] 2.1.2 Install required packages (@microsoft/signalr, chart.js, react-chartjs-2)
+- [x] 2.1.3 Set up project folder structure (components, services, utils, types)
+- [x] 2.1.4 Configure TypeScript
 
 ### 2.2 Type Definitions & Models
 
-- [ ] 2.2.1 Create TypeScript interfaces for SensorReading
-- [ ] 2.2.2 Create interfaces for SensorStatistics
-- [ ] 2.2.3 Create interfaces for AnomalyAlert
-- [ ] 2.2.4 Create enum for SensorType
+- [x] 2.2.1 Create TypeScript interfaces for SensorReading
+- [x] 2.2.2 Create interfaces for SensorStatistics
+- [x] 2.2.3 Create interfaces for AnomalyAlert
+- [x] 2.2.4 Create enum for SensorType
 
 ### 2.3 UI Components (No Data Dependencies)
 
-- [ ] 2.3.1 Create main SmartBuilding Dashboard layout component
-- [ ] 2.3.2 Create StatisticsCard component for displaying min/max/avg/count
-- [ ] 2.3.3 Create AlertNotification component for HVAC, energy, and air quality alerts
-- [ ] 2.3.4 Create SensorTypeSelector component
-- [ ] 2.3.5 Create ConnectionStatus component
-- [ ] 2.3.6 Add basic styling with CSS/CSS modules
+- [x] 2.3.1 Create main SmartBuilding Dashboard layout component
+- [x] 2.3.2 Create StatisticsCard component for displaying min/max/avg/count
+- [x] 2.3.3 Create AlertNotification component for HVAC, energy, and air quality alerts
+- [x] 2.3.4 Create SensorTypeSelector component
+- [x] 2.3.5 Create ConnectionStatus component
+- [x] 2.3.6 Add basic styling with CSS/CSS modules
 
 ### 2.4 Chart Components (Static Setup)
 
-- [ ] 2.4.1 Create RealtimeChart component using Chart.js
-- [ ] 2.4.2 Configure chart options for real-time data (time series)
-- [ ] 2.4.3 Implement chart data management and updating logic
-- [ ] 2.4.4 Add chart performance optimizations (data windowing/sampling)
-- [ ] 2.4.5 Test chart with mock static data
+- [x] 2.4.1 Create RealtimeChart component using Chart.js
+- [x] 2.4.2 Configure chart options for real-time data (time series)
+- [x] 2.4.3 Implement chart data management and updating logic
+- [x] 2.4.4 Add chart performance optimizations (data windowing/sampling)
+- [x] 2.4.5 Test chart with mock static data
 
 ### 2.5 Services & Utilities (No Backend Dependencies)
 
-- [ ] 2.5.1 Create data formatting utilities
-- [ ] 2.5.2 Create chart data transformation utilities
-- [ ] 2.5.3 Create anomaly alert management service
-- [ ] 2.5.4 Create statistics calculation utilities
-- [ ] 2.5.5 Implement data buffering/windowing logic
+- [x] 2.5.1 Create data formatting utilities
+- [x] 2.5.2 Create chart data transformation utilities
+- [x] 2.5.3 Create anomaly alert management service
+- [x] 2.5.4 Create statistics calculation utilities
+- [x] 2.5.5 Implement data buffering/windowing logic
 
 ## 3. Integration & Real-time Communication
 
 ### 3.1 Backend SignalR Implementation
 
-- [ ] 3.1.1 Integrate SensorDataHub with data generation service
-- [ ] 3.1.2 Implement real-time broadcasting of sensor readings
-- [ ] 3.1.3 Implement real-time broadcasting of statistics updates
-- [ ] 3.1.4 Implement real-time broadcasting of anomaly alerts
-- [ ] 3.1.5 Add connection group management for different sensor types
+- [x] 3.1.1 Integrate SensorDataHub with data generation service
+- [x] 3.1.2 Implement real-time broadcasting of sensor readings
+- [x] 3.1.3 Implement real-time broadcasting of statistics updates
+- [x] 3.1.4 Implement real-time broadcasting of anomaly alerts
+- [x] 3.1.5 Add connection group management for different sensor types
 
 ### 3.2 Frontend SignalR Client Setup
 
-- [ ] 3.2.1 Create SignalR connection service
-- [ ] 3.2.2 Implement connection management (connect/disconnect/reconnect)
-- [ ] 3.2.3 Add event handlers for sensor data reception
-- [ ] 3.2.4 Add event handlers for statistics updates
-- [ ] 3.2.5 Add event handlers for anomaly alerts
+- [x] 3.2.1 Create SignalR connection service
+- [x] 3.2.2 Implement connection management (connect/disconnect/reconnect)
+- [x] 3.2.3 Add event handlers for sensor data reception
+- [x] 3.2.4 Add event handlers for statistics updates
+- [x] 3.2.5 Add event handlers for anomaly alerts
 
 ### 3.3 Data Flow Integration
 
-- [ ] 3.3.1 Connect real-time sensor data to chart component
-- [ ] 3.3.2 Connect statistics updates to StatisticsCard components
-- [ ] 3.3.3 Connect anomaly alerts to AlertNotification component
-- [ ] 3.3.4 Implement data synchronization and state management
-- [ ] 3.3.5 Add error handling for connection failures
+- [x] 3.3.1 Connect real-time sensor data to chart component
+- [x] 3.3.2 Connect statistics updates to StatisticsCard components
+- [x] 3.3.3 Connect anomaly alerts to AlertNotification component
+- [x] 3.3.4 Implement data synchronization and state management
+- [x] 3.3.5 Add error handling for connection failures
 
 ## 4. Testing & Performance Optimization
 
