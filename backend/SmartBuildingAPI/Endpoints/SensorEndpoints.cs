@@ -174,9 +174,12 @@ namespace SmartBuildingAPI.Endpoints
             // Get aggregated statistics by sensor type with trends
             sensors.MapGet("/aggregated", (ISensorDataStore dataStore) =>
             {
-                var allReadings = dataStore.GetRecent(60000); // Get last 60 seconds of data (at 1000/sec = 60k readings)
+                // Get last 1 second of data (at 1000/sec = 1000 readings)
+                var lastSecondReadings = dataStore.GetRecent(1000);
+                // Get previous 1 second for trend comparison
+                var twoSecondsReadings = dataStore.GetRecent(2000);
 
-                if (allReadings.Length == 0)
+                if (lastSecondReadings.Length == 0)
                 {
                     return Results.Ok(new
                     {
@@ -186,20 +189,16 @@ namespace SmartBuildingAPI.Endpoints
                     });
                 }
 
-                // Split readings into recent (last 30s) and older (previous 30s)
-                // Note: allReadings[0] is most recent, so Take gets recent, Skip gets older
-                var midpoint = allReadings.Length / 2;
-                var recentReadings = allReadings.Take(midpoint).ToArray();  // First half (most recent 30s)
-                var olderReadings = allReadings.Skip(midpoint).ToArray();  // Second half (older 30s)
+                // Split for trend comparison: last 1 second vs previous 1 second
+                var previousSecondReadings = twoSecondsReadings.Skip(1000).ToArray();
 
                 // Group by sensor type
                 var aggregatedStats = Enum.GetValues<SensorType>()
                     .Select<SensorType, object>(sensorType =>
                     {
-                        // Get all readings for this type
-                        var typeReadings = allReadings.Where(r => GetSensorTypeFromId(r.SensorId) == sensorType).ToArray();
-                        var recentTypeReadings = recentReadings.Where(r => GetSensorTypeFromId(r.SensorId) == sensorType).ToArray();
-                        var olderTypeReadings = olderReadings.Where(r => GetSensorTypeFromId(r.SensorId) == sensorType).ToArray();
+                        // Get readings for this type from last second only
+                        var typeReadings = lastSecondReadings.Where(r => GetSensorTypeFromId(r.SensorId) == sensorType).ToArray();
+                        var previousTypeReadings = previousSecondReadings.Where(r => GetSensorTypeFromId(r.SensorId) == sensorType).ToArray();
 
                         if (typeReadings.Length == 0)
                         {
@@ -226,15 +225,15 @@ namespace SmartBuildingAPI.Endpoints
                         var max = values.Max();
                         var current = typeReadings.First().Value; // Most recent
 
-                        // Calculate trend
+                        // Calculate trend (comparing last second vs previous second)
                         var trend = "stable";
                         var trendSymbol = "→";
 
-                        if (recentTypeReadings.Length > 0 && olderTypeReadings.Length > 0)
+                        if (typeReadings.Length > 0 && previousTypeReadings.Length > 0)
                         {
-                            var recentAvg = recentTypeReadings.Average(r => r.Value);
-                            var olderAvg = olderTypeReadings.Average(r => r.Value);
-                            var percentChange = ((recentAvg - olderAvg) / olderAvg) * 100;
+                            var currentAvg = typeReadings.Average(r => r.Value);
+                            var previousAvg = previousTypeReadings.Average(r => r.Value);
+                            var percentChange = ((currentAvg - previousAvg) / previousAvg) * 100;
 
                             if (percentChange > 2)
                             {
@@ -277,8 +276,8 @@ namespace SmartBuildingAPI.Endpoints
                     timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                     timeWindow = new
                     {
-                        seconds = 60,
-                        trendComparison = "Last 30s vs Previous 30s"
+                        seconds = 1,
+                        trendComparison = "Last 1s vs Previous 1s"
                     },
                     aggregated = aggregatedStats
                 });
