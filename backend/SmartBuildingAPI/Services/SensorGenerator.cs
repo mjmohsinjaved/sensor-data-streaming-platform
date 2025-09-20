@@ -16,6 +16,7 @@ namespace SmartBuildingAPI.Services
         private readonly IHubContext<SensorHub> _hubContext;
         private readonly ILogger<SensorGenerator> _logger;
         private readonly IPerformanceMonitor _perfMonitor;
+        private readonly IAggregationService _aggregationService;
 
         // Sensor configuration: 50 sensors total (10 of each type)
         private readonly SensorConfig[] _sensors = new SensorConfig[50];
@@ -26,17 +27,14 @@ namespace SmartBuildingAPI.Services
         private const double IntervalMs = 1000.0 / ReadingsPerSecond; // 1ms per reading
         private const double TicksPerMs = TimeSpan.TicksPerMillisecond;
 
-        // Batching for SignalR
-        private const int BatchSize = 50; // Send 50 readings at once (20Hz update rate to clients)
-        private readonly System.Collections.Generic.List<SensorReading> _broadcastBatch = new(BatchSize);
-
         public SensorGenerator(ISensorDataStore dataStore, IHubContext<SensorHub> hubContext,
-            ILogger<SensorGenerator> logger, IPerformanceMonitor perfMonitor)
+            ILogger<SensorGenerator> logger, IPerformanceMonitor perfMonitor, IAggregationService aggregationService)
         {
             _dataStore = dataStore;
             _hubContext = hubContext;
             _logger = logger;
             _perfMonitor = perfMonitor;
+            _aggregationService = aggregationService;
             InitializeSensors();
         }
 
@@ -159,8 +157,11 @@ namespace SmartBuildingAPI.Services
             var nextReadingTime = stopwatch.ElapsedTicks;
             var ticksPerReading = (long)(TicksPerMs * IntervalMs);
 
+            // Timer for aggregated statistics broadcast (every 1 second)
+            var lastAggregationBroadcast = stopwatch.ElapsedMilliseconds;
+            const int AggregationIntervalMs = 1000;
+
             int sensorIndex = 0;
-            int batchCount = 0;
 
             while (!stoppingToken.IsCancellationRequested)
             {
@@ -172,19 +173,14 @@ namespace SmartBuildingAPI.Services
                 _dataStore.Add(reading);
                 _perfMonitor.RecordReading();
 
-                // Add to broadcast batch
-                _broadcastBatch.Add(reading);
-                batchCount++;
-
-                // Fire-and-forget broadcast when batch is full
-                if (batchCount >= BatchSize)
+                // Check if it's time to broadcast aggregated statistics (every 1 second)
+                var currentTime = stopwatch.ElapsedMilliseconds;
+                if (currentTime - lastAggregationBroadcast >= AggregationIntervalMs)
                 {
-                    var batchToSend = _broadcastBatch.ToArray();
-                    _broadcastBatch.Clear();
-                    batchCount = 0;
+                    lastAggregationBroadcast = currentTime;
 
-                    // Fire and forget - don't await
-                    _ = Task.Run(() => BroadcastBatchAsync(batchToSend), stoppingToken);
+                    // Fire and forget - broadcast aggregated statistics
+                    _ = Task.Run(() => BroadcastAggregatedStatsAsync(), stoppingToken);
                 }
 
                 // Move to next sensor (round-robin)
@@ -308,23 +304,30 @@ namespace SmartBuildingAPI.Services
                 s.Zone == zone);
         }
 
-        private async Task BroadcastBatchAsync(SensorReading[] batch)
+        private async Task BroadcastAggregatedStatsAsync()
         {
             try
             {
-                // Send batch to all connected clients
-                await _hubContext.Clients.All.SendAsync("ReceiveSensorData", batch);
+                // Calculate aggregated statistics using the service
+                var aggregatedStats = _aggregationService.CalculateAggregatedStatistics();
 
-                // Also send current statistics (less frequently)
-                if (DateTime.UtcNow.Millisecond % 500 < 50) // Every ~500ms
+                // Send aggregated statistics to all connected clients
+                await _hubContext.Clients.All.SendAsync("ReceiveAggregatedStats", aggregatedStats);
+
+                // Also send performance metrics
+                var perfStats = _perfMonitor.GetStats();
+                await _hubContext.Clients.All.SendAsync("ReceivePerformanceStats", new
                 {
-                    var stats = _dataStore.GetAllStatistics();
-                    await _hubContext.Clients.All.SendAsync("ReceiveStatistics", stats);
-                }
+                    actualReadingsPerSecond = perfStats.Last10SecondsAverage,
+                    targetReadingsPerSecond = 1000,
+                    efficiency = (perfStats.Last10SecondsAverage / 1000.0) * 100,
+                    totalReadings = perfStats.TotalReadings,
+                    runtimeSeconds = perfStats.RuntimeSeconds
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error broadcasting sensor data");
+                _logger.LogError(ex, "Error broadcasting aggregated statistics");
             }
         }
 

@@ -11,25 +11,25 @@ namespace SmartBuildingAPI.Hubs
     {
         private readonly ISensorDataStore _dataStore;
         private readonly ILogger<SensorHub> _logger;
+        private readonly IAggregationService _aggregationService;
 
-        public SensorHub(ISensorDataStore dataStore, ILogger<SensorHub> logger)
+        public SensorHub(ISensorDataStore dataStore, ILogger<SensorHub> logger, IAggregationService aggregationService)
         {
             _dataStore = dataStore;
             _logger = logger;
+            _aggregationService = aggregationService;
         }
 
         public override async Task OnConnectedAsync()
         {
             _logger.LogInformation("Client connected: {ConnectionId}", Context.ConnectionId);
 
-            // Send initial data to newly connected client
-            var recentReadings = _dataStore.GetRecent(100);
-            var statistics = _dataStore.GetAllStatistics();
+            // Send initial aggregated statistics to newly connected client
+            var aggregatedStats = _aggregationService.CalculateAggregatedStatistics();
 
             await Clients.Caller.SendAsync("InitialData", new
             {
-                readings = recentReadings,
-                stats = statistics,
+                aggregatedStats = aggregatedStats,
                 totalReadings = _dataStore.GetTotalReadings()
             });
 
@@ -54,6 +54,13 @@ namespace SmartBuildingAPI.Hubs
         {
             var stats = _dataStore.GetStatistics(sensorId);
             await Clients.Caller.SendAsync("SensorStatistics", stats);
+        }
+
+        // Client can request aggregated statistics
+        public async Task GetAggregatedStatistics()
+        {
+            var aggregatedStats = _aggregationService.CalculateAggregatedStatistics();
+            await Clients.Caller.SendAsync("AggregatedStatistics", aggregatedStats);
         }
 
         // Subscribe to specific floor updates
