@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { type SensorStatistics, type SensorReading, type AnomalyAlert, SensorType, SENSOR_CONFIG } from '../../types/sensor.types';
 import { SignalRService } from '../../services/signalr/SignalRService';
+import { SensorApiService } from '../../services/api/SensorApiService';
 import ConnectionStatus from '../ConnectionStatus/ConnectionStatus';
 import SensorSelector from '../SensorSelector/SensorSelector';
 import StatisticsCard from '../StatisticsCard/StatisticsCard';
@@ -10,6 +11,7 @@ import { Activity, AlertTriangle, BarChart3, Gauge } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
   const [signalR] = useState(() => SignalRService.getInstance());
+  const [apiService] = useState(() => SensorApiService.getInstance());
   const [isConnected, setIsConnected] = useState(false);
   const [selectedSensors, setSelectedSensors] = useState<Set<SensorType>>(
     new Set([SensorType.Temperature, SensorType.Humidity])
@@ -25,6 +27,26 @@ const Dashboard: React.FC = () => {
   const [alerts, setAlerts] = useState<AnomalyAlert[]>([]);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
+  // Load initial data from REST API
+  const loadInitialDataFromApi = async () => {
+    try {
+      // Load statistics
+      const stats = await apiService.getStatisticsBySensorType();
+      setStatistics(stats);
+      console.log('Loaded initial statistics from API:', stats);
+
+      // Load recent readings
+      const readings = await apiService.getRecentReadingsBySensorType(50);
+      setSensorReadings(prev => ({
+        ...prev,
+        ...readings
+      }));
+      console.log('Loaded initial readings from API');
+    } catch (error) {
+      console.error('Failed to load initial data from API:', error);
+    }
+  };
+
   useEffect(() => {
     let isSubscribed = true;
 
@@ -35,7 +57,8 @@ const Dashboard: React.FC = () => {
       try {
         // Check if already connected or connecting
         const state = signalR.getConnectionState();
-        if (state === 1) { // Already Connected
+        // HubConnectionState.Connected = 'Connected'
+        if (state && (state as any) === 1) { // Already Connected
           console.log('SignalR already connected');
           setIsConnected(true);
           // Subscribe to default sensors for already connected state
@@ -46,9 +69,12 @@ const Dashboard: React.FC = () => {
               console.warn(`Failed to subscribe to ${sensor}`);
             }
           }
+          // Load initial data from REST API
+          loadInitialDataFromApi();
           return;
         }
-        if (state === 0) { // Connecting
+        // HubConnectionState.Connecting = 'Connecting'
+        if (state && (state as any) === 0) { // Connecting
           console.log('SignalR is already connecting...');
           return;
         }
@@ -78,6 +104,9 @@ const Dashboard: React.FC = () => {
                 console.warn(`Failed to subscribe to ${sensor}:`, err);
               }
             }
+
+            // Load initial data from REST API
+            loadInitialDataFromApi();
           }
         }
       } catch (error) {
@@ -108,20 +137,33 @@ const Dashboard: React.FC = () => {
     signalR.onSensorReading((reading: any) => {
       console.log('Received sensor reading:', reading);
 
-      // Transform backend format to frontend format
-      const transformedReading: SensorReading = {
-        id: reading.Id || reading.id,
-        sensorId: reading.SensorId || reading.sensorId,
-        value: reading.Value || reading.value,
-        timestamp: reading.Timestamp || reading.timestamp,
-        sensorType: reading.SensorType || reading.sensorType
+      // Map backend sensor type (numeric) to frontend enum
+      const getSensorTypeFromBackend = (type: number): SensorType | null => {
+        const typeMapping: Record<number, SensorType> = {
+          1: SensorType.Temperature,
+          2: SensorType.Humidity,
+          3: SensorType.CO2,
+          4: SensorType.Occupancy,
+          5: SensorType.PowerConsumption
+        };
+        return typeMapping[type] || null;
       };
 
-      // Skip if sensorType is invalid
-      if (!transformedReading.sensorType || !Object.values(SensorType).includes(transformedReading.sensorType as SensorType)) {
-        console.warn('Invalid or missing sensor type:', transformedReading.sensorType);
+      // Get sensor type from backend Type field (numeric)
+      const sensorType = getSensorTypeFromBackend(reading.Type || reading.type);
+      if (!sensorType) {
+        console.warn('Invalid sensor type:', reading.Type || reading.type);
         return;
       }
+
+      // Transform backend format to frontend format
+      const transformedReading: SensorReading = {
+        id: `${reading.SensorId || reading.sensorId}_${reading.Timestamp || reading.timestamp}`,
+        sensorId: String(reading.SensorId || reading.sensorId),
+        value: reading.Value || reading.value,
+        timestamp: new Date(reading.Timestamp || reading.timestamp).toISOString(),
+        sensorType: sensorType
+      };
 
       setSensorReadings(prev => {
         const updated = { ...prev };
@@ -144,6 +186,18 @@ const Dashboard: React.FC = () => {
     signalR.onStatisticsUpdate((stats: any) => {
       console.log('Received statistics update:', stats);
 
+      // Determine sensor type from sensor ID pattern
+      const getSensorTypeFromId = (sensorId: number): SensorType => {
+        if (sensorId <= 10) return SensorType.Temperature;
+        if (sensorId <= 20) return SensorType.Humidity;
+        if (sensorId <= 30) return SensorType.CO2;
+        if (sensorId <= 40) return SensorType.Occupancy;
+        return SensorType.PowerConsumption;
+      };
+
+      const sensorId = stats.SensorId || stats.sensorId;
+      const sensorType = getSensorTypeFromId(sensorId);
+
       // Transform backend format to frontend format
       const transformedStats: SensorStatistics = {
         current: stats.Current || stats.current,
@@ -151,14 +205,9 @@ const Dashboard: React.FC = () => {
         max: stats.Max || stats.max,
         average: stats.Average || stats.average,
         count: stats.Count || stats.count,
-        sensorType: stats.SensorType || stats.sensorType,
-        lastUpdated: stats.LastUpdated || stats.lastUpdated
+        sensorType: sensorType,
+        lastUpdated: new Date(stats.LastUpdate || stats.lastUpdate || Date.now()).toISOString()
       };
-
-      if (!transformedStats.sensorType) {
-        console.warn('Invalid statistics - missing sensor type');
-        return;
-      }
 
       setStatistics(prev => ({
         ...prev,
@@ -188,19 +237,46 @@ const Dashboard: React.FC = () => {
 
     // Handle initial statistics
     signalR.onInitialStatistics((stats: any) => {
+      console.log('Received initial statistics:', stats);
       const transformedStats: Record<string, SensorStatistics> = {};
+
+      // Determine sensor type from sensor ID pattern
+      const getSensorTypeFromId = (sensorId: number): SensorType => {
+        if (sensorId <= 10) return SensorType.Temperature;
+        if (sensorId <= 20) return SensorType.Humidity;
+        if (sensorId <= 30) return SensorType.CO2;
+        if (sensorId <= 40) return SensorType.Occupancy;
+        return SensorType.PowerConsumption;
+      };
 
       Object.keys(stats).forEach(key => {
         const stat = stats[key];
-        transformedStats[key] = {
-          current: stat.Current || stat.current,
-          min: stat.Min || stat.min,
-          max: stat.Max || stat.max,
-          average: stat.Average || stat.average,
-          count: stat.Count || stat.count,
-          sensorType: stat.SensorType || stat.sensorType || key,
-          lastUpdated: stat.LastUpdated || stat.lastUpdated
-        };
+        const sensorId = stat.SensorId || stat.sensorId || parseInt(key);
+        const sensorType = getSensorTypeFromId(sensorId);
+
+        // Group statistics by sensor type (aggregate multiple sensors of same type)
+        if (!transformedStats[sensorType]) {
+          transformedStats[sensorType] = {
+            current: stat.Current || stat.current,
+            min: stat.Min || stat.min,
+            max: stat.Max || stat.max,
+            average: stat.Average || stat.average,
+            count: stat.Count || stat.count,
+            sensorType: sensorType,
+            lastUpdated: new Date(stat.LastUpdate || stat.lastUpdate || Date.now()).toISOString()
+          };
+        } else {
+          // Aggregate values for sensors of the same type
+          const existing = transformedStats[sensorType];
+          transformedStats[sensorType] = {
+            ...existing,
+            current: (existing.current + (stat.Current || stat.current)) / 2,
+            min: Math.min(existing.min, stat.Min || stat.min),
+            max: Math.max(existing.max, stat.Max || stat.max),
+            average: (existing.average + (stat.Average || stat.average)) / 2,
+            count: existing.count + (stat.Count || stat.count)
+          };
+        }
       });
 
       setStatistics(transformedStats);
@@ -229,22 +305,51 @@ const Dashboard: React.FC = () => {
     signalR.on('ReceiveHistoricalData', (historicalData: any[]) => {
       console.log('Received historical data:', historicalData.length, 'readings');
       if (historicalData.length > 0) {
-        // Transform historical data
-        const transformedData = historicalData.map(reading => ({
-          id: reading.Id || reading.id,
-          sensorId: reading.SensorId || reading.sensorId,
-          value: reading.Value || reading.value,
-          timestamp: reading.Timestamp || reading.timestamp,
-          sensorType: reading.SensorType || reading.sensorType
-        }));
+        // Map backend sensor type (numeric) to frontend enum
+        const getSensorTypeFromBackend = (type: number): SensorType | null => {
+          const typeMapping: Record<number, SensorType> = {
+            1: SensorType.Temperature,
+            2: SensorType.Humidity,
+            3: SensorType.CO2,
+            4: SensorType.Occupancy,
+            5: SensorType.PowerConsumption
+          };
+          return typeMapping[type] || null;
+        };
 
-        const sensorType = transformedData[0].sensorType;
-        if (sensorType) {
-          setSensorReadings(prev => ({
-            ...prev,
-            [sensorType]: transformedData.slice(-50) // Keep last 50 readings
-          }));
-        }
+        // Group readings by sensor type
+        const groupedReadings: Record<SensorType, SensorReading[]> = {
+          [SensorType.Temperature]: [],
+          [SensorType.Humidity]: [],
+          [SensorType.CO2]: [],
+          [SensorType.Occupancy]: [],
+          [SensorType.PowerConsumption]: [],
+        };
+
+        historicalData.forEach(reading => {
+          const sensorType = getSensorTypeFromBackend(reading.Type || reading.type);
+          if (sensorType) {
+            const transformedReading: SensorReading = {
+              id: `${reading.SensorId || reading.sensorId}_${reading.Timestamp || reading.timestamp}`,
+              sensorId: String(reading.SensorId || reading.sensorId),
+              value: reading.Value || reading.value,
+              timestamp: new Date(reading.Timestamp || reading.timestamp).toISOString(),
+              sensorType: sensorType
+            };
+            groupedReadings[sensorType].push(transformedReading);
+          }
+        });
+
+        // Update state with grouped readings
+        setSensorReadings(prev => {
+          const updated = { ...prev };
+          Object.entries(groupedReadings).forEach(([type, readings]) => {
+            if (readings.length > 0) {
+              updated[type as SensorType] = readings.slice(-50); // Keep last 50 readings
+            }
+          });
+          return updated;
+        });
       }
     });
   };

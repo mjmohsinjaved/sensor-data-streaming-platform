@@ -1,13 +1,11 @@
 import { format, parseISO } from 'date-fns';
-import type { SensorReading, SensorStatistics, AnomalyAlert, SensorType } from '../types/sensor.types';
+import type { SensorType } from '../types/sensor.types';
 import { SENSOR_CONFIG } from '../types/sensor.types';
 
 /**
  * Format a numeric value with appropriate decimal places based on sensor type
  */
 export const formatSensorValue = (value: number, sensorType: SensorType): string => {
-  const config = SENSOR_CONFIG[sensorType];
-
   switch (sensorType) {
     case 'Temperature':
     case 'Humidity':

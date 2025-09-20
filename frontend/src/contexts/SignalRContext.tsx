@@ -84,10 +84,11 @@ export const SignalRProvider: React.FC<SignalRProviderProps> = ({
     };
 
     service.on('connectionStatusChanged', handleConnectionStatusChanged);
-    service.on(HUB_METHODS.RECEIVE_SENSOR_DATA, handleSensorData);
-    service.on(HUB_METHODS.RECEIVE_ALERT, handleAlert);
-    service.on(HUB_METHODS.RECEIVE_CONNECTION_UPDATE, handleConnectionUpdate);
-    service.on(HUB_METHODS.RECEIVE_ERROR, handleError);
+    // Note: These methods are not currently used as Dashboard uses SignalRService directly
+    // service.on(HUB_METHODS.RECEIVE_SENSOR_DATA, handleSensorData);
+    // service.on(HUB_METHODS.RECEIVE_ALERT, handleAlert);
+    // service.on(HUB_METHODS.RECEIVE_CONNECTION_UPDATE, handleConnectionUpdate);
+    // service.on(HUB_METHODS.RECEIVE_ERROR, handleError);
 
     if (autoConnect) {
       connect();
@@ -95,10 +96,11 @@ export const SignalRProvider: React.FC<SignalRProviderProps> = ({
 
     return () => {
       service.off('connectionStatusChanged', handleConnectionStatusChanged);
-      service.off(HUB_METHODS.RECEIVE_SENSOR_DATA, handleSensorData);
-      service.off(HUB_METHODS.RECEIVE_ALERT, handleAlert);
-      service.off(HUB_METHODS.RECEIVE_CONNECTION_UPDATE, handleConnectionUpdate);
-      service.off(HUB_METHODS.RECEIVE_ERROR, handleError);
+      // Note: These methods are not currently used as Dashboard uses SignalRService directly
+      // service.off(HUB_METHODS.RECEIVE_SENSOR_DATA, handleSensorData);
+      // service.off(HUB_METHODS.RECEIVE_ALERT, handleAlert);
+      // service.off(HUB_METHODS.RECEIVE_CONNECTION_UPDATE, handleConnectionUpdate);
+      // service.off(HUB_METHODS.RECEIVE_ERROR, handleError);
 
       if (autoConnect) {
         service.disconnect();

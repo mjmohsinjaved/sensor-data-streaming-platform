@@ -122,46 +122,77 @@ export class SignalRService {
 	private registerServerMethods(): void {
 		if (!this.hubConnection) return;
 
-		// Register new hub methods for sensor dashboard
+		// Register backend hub methods
+		// Handle batch sensor data from backend
 		this.hubConnection.on(
-			HUB_METHODS.RECEIVE_SENSOR_READING,
-			(data: SensorReading) => {
-				this.emit(HUB_METHODS.RECEIVE_SENSOR_READING, data);
+			"ReceiveSensorData",
+			(batch: any[]) => {
+				console.log('Received sensor data batch:', batch.length, 'readings');
+				// Process each reading in the batch
+				if (batch && batch.length > 0) {
+					batch.forEach(reading => {
+						this.emit(HUB_METHODS.RECEIVE_SENSOR_READING, reading);
+					});
+				}
 			}
 		);
 
+		// Handle statistics update from backend
 		this.hubConnection.on(
-			HUB_METHODS.RECEIVE_STATISTICS_UPDATE,
-			(stats: SensorStatistics) => {
+			"ReceiveStatistics",
+			(stats: any[]) => {
+				console.log('Received statistics:', stats);
+				// Transform statistics array to record format
+				if (stats && stats.length > 0) {
+					stats.forEach(stat => {
+						this.emit(HUB_METHODS.RECEIVE_STATISTICS_UPDATE, stat);
+					});
+				}
+			}
+		);
+
+		// Handle initial data when connecting
+		this.hubConnection.on(
+			"InitialData",
+			(data: { readings: any[], stats: any[], totalReadings: number }) => {
+				console.log('Received initial data:', data.totalReadings, 'total readings');
+				// Process initial readings
+				if (data.readings && data.readings.length > 0) {
+					data.readings.forEach(reading => {
+						this.emit(HUB_METHODS.RECEIVE_SENSOR_READING, reading);
+					});
+				}
+				// Process initial statistics
+				if (data.stats && data.stats.length > 0) {
+					const statsRecord: Record<string, any> = {};
+					data.stats.forEach(stat => {
+						// Use sensorId as key
+						statsRecord[stat.SensorId || stat.sensorId] = stat;
+					});
+					this.emit(HUB_METHODS.RECEIVE_INITIAL_STATISTICS, statsRecord);
+				}
+			}
+		);
+
+		// Handle recent readings response
+		this.hubConnection.on(
+			"RecentReadings",
+			(readings: any[]) => {
+				console.log('Received recent readings:', readings.length);
+				if (readings && readings.length > 0) {
+					readings.forEach(reading => {
+						this.emit(HUB_METHODS.RECEIVE_SENSOR_READING, reading);
+					});
+				}
+			}
+		);
+
+		// Handle sensor statistics response
+		this.hubConnection.on(
+			"SensorStatistics",
+			(stats: any) => {
+				console.log('Received sensor statistics:', stats);
 				this.emit(HUB_METHODS.RECEIVE_STATISTICS_UPDATE, stats);
-			}
-		);
-
-		this.hubConnection.on(
-			HUB_METHODS.RECEIVE_ANOMALY_ALERT,
-			(alert: AnomalyAlert) => {
-				this.emit(HUB_METHODS.RECEIVE_ANOMALY_ALERT, alert);
-			}
-		);
-
-		this.hubConnection.on(
-			HUB_METHODS.RECEIVE_INITIAL_STATISTICS,
-			(stats: Record<string, SensorStatistics>) => {
-				this.emit(HUB_METHODS.RECEIVE_INITIAL_STATISTICS, stats);
-			}
-		);
-
-		this.hubConnection.on(
-			HUB_METHODS.RECEIVE_RECENT_ALERTS,
-			(alerts: AnomalyAlert[]) => {
-				this.emit(HUB_METHODS.RECEIVE_RECENT_ALERTS, alerts);
-			}
-		);
-
-		this.hubConnection.on(
-			HUB_METHODS.RECEIVE_HISTORICAL_DATA,
-			(data: SensorReading[]) => {
-				this.emit(HUB_METHODS.RECEIVE_HISTORICAL_DATA, data);
 			}
 		);
 	}
@@ -318,11 +349,13 @@ export class SignalRService {
 		}
 
 		try {
+			// Convert string enum to numeric value for backend
+			const sensorTypeValue = this.getSensorTypeValue(sensorType);
 			await this.hubConnection.invoke(
-				HUB_METHODS.SUBSCRIBE_TO_SENSOR_TYPE,
-				sensorType
+				"SubscribeToSensorType",
+				sensorTypeValue
 			);
-			console.log(`Subscribed to sensor type: ${sensorType}`);
+			console.log(`Subscribed to sensor type: ${sensorType} (${sensorTypeValue})`);
 		} catch (error) {
 			console.error(`Failed to subscribe to sensor type ${sensorType}:`, error);
 			throw error;
@@ -337,11 +370,13 @@ export class SignalRService {
 		}
 
 		try {
+			// Convert string enum to numeric value for backend
+			const sensorTypeValue = this.getSensorTypeValue(sensorType);
 			await this.hubConnection!.invoke(
-				HUB_METHODS.UNSUBSCRIBE_FROM_SENSOR_TYPE,
-				sensorType
+				"UnsubscribeFromSensorType",
+				sensorTypeValue
 			);
-			console.log(`Unsubscribed from sensor type: ${sensorType}`);
+			console.log(`Unsubscribed from sensor type: ${sensorType} (${sensorTypeValue})`);
 		} catch (error) {
 			console.error(
 				`Failed to unsubscribe from sensor type ${sensorType}:`,
@@ -360,9 +395,9 @@ export class SignalRService {
 		}
 
 		try {
+			// Use GetRecentReadings method from backend
 			await this.hubConnection!.invoke(
-				HUB_METHODS.GET_HISTORICAL_DATA,
-				sensorType,
+				"GetRecentReadings",
 				count
 			);
 		} catch (error) {
@@ -371,13 +406,14 @@ export class SignalRService {
 		}
 	}
 
-	public async getStatistics(sensorType?: SensorType): Promise<void> {
+	public async getStatistics(_sensorType?: SensorType): Promise<void> {
 		if (!this.isConnected()) {
 			throw new Error("SignalR is not connected");
 		}
 
 		try {
-			await this.hubConnection!.invoke(HUB_METHODS.GET_STATISTICS, sensorType);
+			// Backend expects sensorId, not type - for now, get all stats
+			await this.hubConnection!.invoke("GetRecentReadings", 100);
 		} catch (error) {
 			console.error("Failed to get statistics:", error);
 			throw error;
@@ -467,5 +503,17 @@ export class SignalRService {
 
 	public getConnection(): HubConnection | null {
 		return this.hubConnection;
+	}
+
+	// Helper method to convert SensorType string enum to backend numeric value
+	private getSensorTypeValue(sensorType: SensorType): number {
+		const mapping: Record<SensorType, number> = {
+			[SensorType.Temperature]: 1,
+			[SensorType.Humidity]: 2,
+			[SensorType.CO2]: 3,
+			[SensorType.Occupancy]: 4,
+			[SensorType.PowerConsumption]: 5
+		};
+		return mapping[sensorType];
 	}
 }
