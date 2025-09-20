@@ -171,9 +171,56 @@ namespace SmartBuildingAPI.Endpoints
             .WithName("GetFloorReadings")
             .WithSummary("Get recent readings for a specific floor");
 
-            // Get readings by sensor type
-            sensors.MapGet("/type/{type}", (ISensorDataStore dataStore, SensorType type) =>
+            // Get available sensor types
+            sensors.MapGet("/types", () =>
             {
+                var types = Enum.GetNames(typeof(SensorType))
+                    .Select(name =>
+                    {
+                        var type = Enum.Parse<SensorType>(name);
+                        return new
+                        {
+                            name = name,
+                            unit = SensorMetadata.GetUnit(type)
+                        };
+                    });
+
+                return Results.Ok(new
+                {
+                    types = types,
+                    count = Enum.GetNames(typeof(SensorType)).Length
+                });
+            })
+            .WithName("GetSensorTypes")
+            .WithSummary("Get list of available sensor types");
+
+            // Get readings by sensor type (string name only)
+            sensors.MapGet("/type/{typeName}", (ISensorDataStore dataStore, string typeName) =>
+            {
+                // Explicitly reject numeric values
+                if (int.TryParse(typeName, out _))
+                {
+                    var validTypes = Enum.GetNames(typeof(SensorType));
+                    return Results.BadRequest(new
+                    {
+                        error = $"Numeric sensor type not allowed: '{typeName}'",
+                        validTypes = validTypes,
+                        message = "Use sensor type names (e.g., 'Temperature'), not numeric values"
+                    });
+                }
+
+                // Only accept string type names
+                if (!Enum.TryParse<SensorType>(typeName, true, out var type))
+                {
+                    var validTypes = Enum.GetNames(typeof(SensorType));
+                    return Results.BadRequest(new
+                    {
+                        error = $"Invalid sensor type: '{typeName}'",
+                        validTypes = validTypes,
+                        message = "Use one of the valid sensor type names (case-insensitive)"
+                    });
+                }
+
                 var allReadings = dataStore.GetRecent(1000);
                 var typeReadings = allReadings.Where(r => r.Type == type)
                     .Select(r => new
@@ -197,7 +244,7 @@ namespace SmartBuildingAPI.Endpoints
                 });
             })
             .WithName("GetTypeReadings")
-            .WithSummary("Get recent readings for a specific sensor type");
+            .WithSummary("Get recent readings for a specific sensor type (use type name, not numeric value)");
 
             // Health check endpoint
             sensors.MapGet("/health", (ISensorDataStore dataStore) =>
