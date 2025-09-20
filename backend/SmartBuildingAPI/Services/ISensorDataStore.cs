@@ -9,5 +9,6 @@ namespace SmartBuildingAPI.Services
         SensorStatistics GetStatistics(ushort sensorId);
         SensorStatistics[] GetAllStatistics();
         int GetTotalReadings();
+        void Reset();
     }
 }
