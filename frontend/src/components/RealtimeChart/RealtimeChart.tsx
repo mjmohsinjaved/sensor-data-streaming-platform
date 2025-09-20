@@ -32,6 +32,7 @@ interface ChartDataPoint {
   min: number;
   max: number;
   average: number;
+  anomalyCount?: number;
 }
 
 interface RealtimeChartProps {
@@ -77,8 +78,19 @@ const RealtimeChart: React.FC<RealtimeChartProps> = ({
         backgroundColor: 'transparent',
         tension: 0.4,
         fill: false,
-        pointRadius: data.length > 50 ? 0 : 2,
-        pointHoverRadius: 4,
+        // Highlight points with anomalies
+        pointBackgroundColor: data.map(d =>
+          d.anomalyCount && d.anomalyCount > 0 ? '#ef4444' : config.color
+        ),
+        pointBorderColor: data.map(d =>
+          d.anomalyCount && d.anomalyCount > 0 ? '#ef4444' : config.color
+        ),
+        pointRadius: data.map(d =>
+          d.anomalyCount && d.anomalyCount > 0 ? 4 : (data.length > 50 ? 0 : 2)
+        ),
+        pointHoverRadius: data.map(d =>
+          d.anomalyCount && d.anomalyCount > 0 ? 6 : 4
+        ),
         borderWidth: 2,
       },
       {
@@ -174,7 +186,10 @@ const RealtimeChart: React.FC<RealtimeChartProps> = ({
               if (!point) return '';
 
               if (context.datasetIndex === 0) {
-                return `Current: ${point.value.toFixed(2)} ${config.unit}`;
+                const anomalyText = point.anomalyCount && point.anomalyCount > 0
+                  ? ` ⚠️ ${point.anomalyCount} anomal${point.anomalyCount === 1 ? 'y' : 'ies'}`
+                  : '';
+                return `Current: ${point.value.toFixed(2)} ${config.unit}${anomalyText}`;
               } else if (context.datasetIndex === 1) {
                 return `Average: ${point.average.toFixed(2)} ${config.unit}`;
               } else if (context.datasetIndex === 2) {

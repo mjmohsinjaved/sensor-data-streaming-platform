@@ -4,6 +4,7 @@ import {
   type AggregatedStats,
   type PerformanceStats,
   type AnomalyAlert,
+  AlertType,
   SensorType,
   SENSOR_CONFIG
 } from '../../types/sensor.types';
@@ -23,6 +24,7 @@ interface ChartDataPoint {
   min: number;
   max: number;
   average: number;
+  anomalyCount?: number;
 }
 
 const Dashboard: React.FC = () => {
@@ -34,6 +36,9 @@ const Dashboard: React.FC = () => {
 
   // Store aggregated statistics by sensor type
   const [aggregatedStats, setAggregatedStats] = useState<Record<string, AggregatedSensorData>>({});
+
+  // Anomaly tracking
+  const [totalAnomalies, setTotalAnomalies] = useState(0);
 
   // Store rolling window of chart data for each sensor type
   const chartDataRef = useRef<Record<string, ChartDataPoint[]>>({
@@ -48,6 +53,9 @@ const Dashboard: React.FC = () => {
   const [alerts, setAlerts] = useState<AnomalyAlert[]>([]);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [performanceStats, setPerformanceStats] = useState<PerformanceStats | null>(null);
+
+  // Track last anomaly counts to detect new anomalies
+  const lastAnomalyCountsRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     let isSubscribed = true;
@@ -111,10 +119,48 @@ const Dashboard: React.FC = () => {
       if (data && data.aggregated) {
         // Update current statistics
         const statsMap: Record<string, AggregatedSensorData> = {};
+        let currentTotalAnomalies = 0;
+
         data.aggregated.forEach(stat => {
           statsMap[stat.type] = stat;
+          currentTotalAnomalies += stat.anomalyCount;
         });
+
         setAggregatedStats(statsMap);
+        setTotalAnomalies(currentTotalAnomalies);
+
+        // Generate alerts for new anomalies
+        const newAlerts: AnomalyAlert[] = [];
+        data.aggregated.forEach(stat => {
+          const lastCount = lastAnomalyCountsRef.current[stat.type] || 0;
+          const currentCount = stat.anomalyCount;
+
+          // If anomaly count increased, create an alert
+          if (currentCount > lastCount) {
+            const alertType = getAlertTypeForSensor(stat.type);
+            const threshold = getThresholdForSensor(stat.type);
+
+            const alert: AnomalyAlert = {
+              id: `${stat.type}-${data.timestamp}`,
+              sensorId: `aggregate-${stat.type}`,
+              value: stat.current,
+              threshold: threshold.max || threshold.min || 0,
+              timestamp: new Date(data.timestamp).toISOString(),
+              alertType: alertType,
+              message: `${currentCount - lastCount} new anomal${currentCount - lastCount === 1 ? 'y' : 'ies'} detected: ${stat.type} sensors ${threshold.message}`,
+              sensorType: stat.type as SensorType
+            };
+            newAlerts.push(alert);
+          }
+
+          // Update last count
+          lastAnomalyCountsRef.current[stat.type] = currentCount;
+        });
+
+        // Add new alerts to the list (keep last 50)
+        if (newAlerts.length > 0) {
+          setAlerts(prev => [...newAlerts, ...prev].slice(0, 50));
+        }
 
         // Update rolling window for charts
         const timestamp = data.timestamp;
@@ -128,7 +174,8 @@ const Dashboard: React.FC = () => {
               value: stat.current,
               min: stat.min,
               max: stat.max,
-              average: stat.average
+              average: stat.average,
+              anomalyCount: stat.anomalyCount // Add anomaly count to chart data
             };
 
             // Add new data point
@@ -174,6 +221,41 @@ const Dashboard: React.FC = () => {
     setAlerts([]);
   };
 
+  // Helper function to determine alert type based on sensor
+  const getAlertTypeForSensor = (sensorType: string): AlertType => {
+    switch (sensorType) {
+      case SensorType.Temperature:
+      case SensorType.Humidity:
+        return AlertType.HVACFailure;
+      case SensorType.CO2:
+        return AlertType.AirQualityIssue;
+      case SensorType.Occupancy:
+        return AlertType.OccupancyAnomaly;
+      case SensorType.PowerConsumption:
+        return AlertType.AbnormalEnergyUsage;
+      default:
+        return AlertType.AirQualityIssue;
+    }
+  };
+
+  // Helper function to get thresholds for each sensor type
+  const getThresholdForSensor = (sensorType: string): { min?: number, max?: number, message: string } => {
+    switch (sensorType) {
+      case SensorType.Temperature:
+        return { min: 19, max: 25, message: 'outside 19-25°C range' };
+      case SensorType.Humidity:
+        return { min: 35, max: 65, message: 'outside 35-65% range' };
+      case SensorType.CO2:
+        return { max: 800, message: 'exceeded 800ppm' };
+      case SensorType.Occupancy:
+        return { max: 45, message: 'exceeded 45 people' };
+      case SensorType.PowerConsumption:
+        return { max: 80, message: 'exceeded 80kW' };
+      default:
+        return { message: 'threshold exceeded' };
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       {/* Header */}
@@ -187,16 +269,28 @@ const Dashboard: React.FC = () => {
               </h1>
             </div>
             <div className="flex items-center space-x-4">
-              <ConnectionStatus
-                isConnected={isConnected}
-                error={connectionError}
-              />
+              {/* Anomaly Indicator */}
+              {totalAnomalies > 0 && (
+                <div className="flex items-center space-x-2 px-3 py-1 bg-yellow-500/10 border border-yellow-500/30 rounded-lg animate-pulse">
+                  <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                  <span className="text-sm font-medium text-yellow-500">
+                    {totalAnomalies} Anomal{totalAnomalies === 1 ? 'y' : 'ies'}
+                  </span>
+                </div>
+              )}
+
+              {/* Performance Stats */}
               {performanceStats && (
                 <div className="text-sm text-gray-400">
                   <span className="text-green-400">{performanceStats.connectedClients}</span> clients |
                   <span className="text-blue-400"> {performanceStats.messagesPerSecond}</span> msg/s
                 </div>
               )}
+
+              <ConnectionStatus
+                isConnected={isConnected}
+                error={connectionError}
+              />
             </div>
           </div>
         </div>
