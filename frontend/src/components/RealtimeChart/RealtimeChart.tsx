@@ -78,18 +78,14 @@ const RealtimeChart: React.FC<RealtimeChartProps> = ({
         backgroundColor: 'transparent',
         tension: 0.4,
         fill: false,
-        // Highlight points with anomalies
-        pointBackgroundColor: data.map(d =>
+        // Remove all point markers for a clean line chart
+        pointRadius: 0,
+        pointHoverRadius: 3,  // Show on hover for all points
+        pointHoverBackgroundColor: data.map(d =>
           d.anomalyCount && d.anomalyCount > 0 ? '#ef4444' : config.color
         ),
-        pointBorderColor: data.map(d =>
+        pointHoverBorderColor: data.map(d =>
           d.anomalyCount && d.anomalyCount > 0 ? '#ef4444' : config.color
-        ),
-        pointRadius: data.map(d =>
-          d.anomalyCount && d.anomalyCount > 0 ? 4 : (data.length > 50 ? 0 : 2)
-        ),
-        pointHoverRadius: data.map(d =>
-          d.anomalyCount && d.anomalyCount > 0 ? 6 : 4
         ),
         borderWidth: 2,
       },
@@ -101,7 +97,7 @@ const RealtimeChart: React.FC<RealtimeChartProps> = ({
         tension: 0.4,
         fill: false,
         pointRadius: 0,
-        pointHoverRadius: 3,
+        pointHoverRadius: 2,
         borderWidth: 1,
         borderDash: [5, 5],
       },
@@ -135,8 +131,10 @@ const RealtimeChart: React.FC<RealtimeChartProps> = ({
         backgroundColor: config.bgColor,
         tension: 0.4,
         fill: true,
-        pointRadius: data.length > 30 ? 0 : 3,
-        pointHoverRadius: 5,
+        pointRadius: 0,  // No points for clean line
+        pointHoverRadius: 3,  // Show on hover only
+        pointHoverBackgroundColor: config.color,
+        pointHoverBorderColor: config.color,
         borderWidth: 2,
       },
     ],
@@ -151,6 +149,7 @@ const RealtimeChart: React.FC<RealtimeChartProps> = ({
     interaction: {
       mode: 'index',
       intersect: false,
+      axis: 'x',
     },
     plugins: {
       legend: {
@@ -216,8 +215,9 @@ const RealtimeChart: React.FC<RealtimeChartProps> = ({
         ticks: {
           color: '#9ca3af',
           maxRotation: 0,
-          autoSkipPadding: 20,
-          maxTicksLimit: 10,
+          autoSkipPadding: 30,
+          maxTicksLimit: 8,  // Reduce to 8 ticks for 100 data points
+          autoSkip: true,
         },
       },
       y: {
