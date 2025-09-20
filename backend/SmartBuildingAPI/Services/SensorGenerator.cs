@@ -42,90 +42,108 @@ namespace SmartBuildingAPI.Services
 
         private void InitializeSensors()
         {
-            int sensorId = 0;
+            // Initialize sensors to match the ID mapping pattern:
+            // IDs 1-10: Temperature
+            // IDs 11-20: Humidity
+            // IDs 21-30: CO2
+            // IDs 31-40: Occupancy
+            // IDs 41-50: Power
 
-            // Distribute sensors across 5 floors
-            for (byte floor = 1; floor <= 5; floor++)
+            int arrayIndex = 0;
+
+            // Temperature sensors (IDs 1-10) - 2 per floor across 5 floors
+            for (ushort id = 1; id <= 10; id++)
             {
-                // 2 temperature sensors per floor
-                for (int i = 0; i < 2; i++)
-                {
-                    _sensors[sensorId++] = new SensorConfig
-                    {
-                        Id = (ushort)sensorId,
-                        Type = SensorType.Temperature,
-                        Floor = floor,
-                        Zone = (byte)((i % 2) + 1),
-                        CurrentValue = 22f + (_random.NextSingle() * 2f - 1f),
-                        MinValue = 18f,
-                        MaxValue = 26f,
-                        ChangeRate = 0.1f
-                    };
-                }
+                byte floor = (byte)((id - 1) / 2 + 1); // Maps: 1,2->floor1, 3,4->floor2, etc.
+                byte zone = (byte)((id - 1) % 2 + 1); // Alternates: 1->zone1, 2->zone2, 3->zone1, etc.
 
-                // 2 humidity sensors per floor
-                for (int i = 0; i < 2; i++)
+                _sensors[arrayIndex++] = new SensorConfig
                 {
-                    _sensors[sensorId++] = new SensorConfig
-                    {
-                        Id = (ushort)sensorId,
-                        Type = SensorType.Humidity,
-                        Floor = floor,
-                        Zone = (byte)((i % 2) + 1),
-                        CurrentValue = 50f + (_random.NextSingle() * 10f - 5f),
-                        MinValue = 30f,
-                        MaxValue = 70f,
-                        ChangeRate = 0.5f
-                    };
-                }
+                    Id = id,
+                    Type = SensorType.Temperature,
+                    Floor = floor,
+                    Zone = zone,
+                    CurrentValue = 22f + (_random.NextSingle() * 2f - 1f),
+                    MinValue = 18f,
+                    MaxValue = 26f,
+                    ChangeRate = 0.1f
+                };
+            }
 
-                // 2 CO2 sensors per floor
-                for (int i = 0; i < 2; i++)
-                {
-                    _sensors[sensorId++] = new SensorConfig
-                    {
-                        Id = (ushort)sensorId,
-                        Type = SensorType.CO2,
-                        Floor = floor,
-                        Zone = (byte)((i % 2) + 1),
-                        CurrentValue = 600f + (_random.NextSingle() * 100f),
-                        MinValue = 400f,
-                        MaxValue = 1000f,
-                        ChangeRate = 5f
-                    };
-                }
+            // Humidity sensors (IDs 11-20)
+            for (ushort id = 11; id <= 20; id++)
+            {
+                byte floor = (byte)((id - 11) / 2 + 1);
+                byte zone = (byte)((id - 11) % 2 + 1);
 
-                // 2 occupancy sensors per floor
-                for (int i = 0; i < 2; i++)
+                _sensors[arrayIndex++] = new SensorConfig
                 {
-                    _sensors[sensorId++] = new SensorConfig
-                    {
-                        Id = (ushort)sensorId,
-                        Type = SensorType.Occupancy,
-                        Floor = floor,
-                        Zone = (byte)((i % 2) + 1),
-                        CurrentValue = GetOccupancyForTime(),
-                        MinValue = 0f,
-                        MaxValue = 50f,
-                        ChangeRate = 2f
-                    };
-                }
+                    Id = id,
+                    Type = SensorType.Humidity,
+                    Floor = floor,
+                    Zone = zone,
+                    CurrentValue = 50f + (_random.NextSingle() * 10f - 5f),
+                    MinValue = 30f,
+                    MaxValue = 70f,
+                    ChangeRate = 0.5f
+                };
+            }
 
-                // 2 power consumption sensors per floor
-                for (int i = 0; i < 2; i++)
+            // CO2 sensors (IDs 21-30)
+            for (ushort id = 21; id <= 30; id++)
+            {
+                byte floor = (byte)((id - 21) / 2 + 1);
+                byte zone = (byte)((id - 21) % 2 + 1);
+
+                _sensors[arrayIndex++] = new SensorConfig
                 {
-                    _sensors[sensorId++] = new SensorConfig
-                    {
-                        Id = (ushort)sensorId,
-                        Type = SensorType.PowerConsumption,
-                        Floor = floor,
-                        Zone = (byte)((i % 2) + 1),
-                        CurrentValue = 30f + (_random.NextSingle() * 20f),
-                        MinValue = 0f,
-                        MaxValue = 100f,
-                        ChangeRate = 1f
-                    };
-                }
+                    Id = id,
+                    Type = SensorType.CO2,
+                    Floor = floor,
+                    Zone = zone,
+                    CurrentValue = 600f + (_random.NextSingle() * 100f),
+                    MinValue = 400f,
+                    MaxValue = 1000f,
+                    ChangeRate = 5f
+                };
+            }
+
+            // Occupancy sensors (IDs 31-40)
+            for (ushort id = 31; id <= 40; id++)
+            {
+                byte floor = (byte)((id - 31) / 2 + 1);
+                byte zone = (byte)((id - 31) % 2 + 1);
+
+                _sensors[arrayIndex++] = new SensorConfig
+                {
+                    Id = id,
+                    Type = SensorType.Occupancy,
+                    Floor = floor,
+                    Zone = zone,
+                    CurrentValue = GetOccupancyForTime(),
+                    MinValue = 0f,
+                    MaxValue = 50f,
+                    ChangeRate = 2f
+                };
+            }
+
+            // Power consumption sensors (IDs 41-50)
+            for (ushort id = 41; id <= 50; id++)
+            {
+                byte floor = (byte)((id - 41) / 2 + 1);
+                byte zone = (byte)((id - 41) % 2 + 1);
+
+                _sensors[arrayIndex++] = new SensorConfig
+                {
+                    Id = id,
+                    Type = SensorType.PowerConsumption,
+                    Floor = floor,
+                    Zone = zone,
+                    CurrentValue = 30f + (_random.NextSingle() * 20f),
+                    MinValue = 0f,
+                    MaxValue = 100f,
+                    ChangeRate = 1f
+                };
             }
         }
 
@@ -197,18 +215,39 @@ namespace SmartBuildingAPI.Services
             // Update sensor value with realistic drift
             UpdateSensorValue(sensor);
 
-            // Create reading
+            // Detect anomalies based on sensor type and thresholds
+            bool isAnomaly = DetectAnomaly(sensor);
+
+            // Create reading with anomaly flag
             return new SensorReading(
                 sensor.Id,
                 sensor.CurrentValue,
                 sensor.Type,
                 sensor.Floor,
-                sensor.Zone
+                sensor.Zone,
+                isAnomaly
             );
+        }
+
+        private bool DetectAnomaly(SensorConfig sensor)
+        {
+            // Define anomaly thresholds for each sensor type
+            return sensor.Type switch
+            {
+                SensorType.Temperature => sensor.CurrentValue < 19f || sensor.CurrentValue > 25f,
+                SensorType.Humidity => sensor.CurrentValue < 35f || sensor.CurrentValue > 65f,
+                SensorType.CO2 => sensor.CurrentValue > 800f,
+                SensorType.Occupancy => sensor.CurrentValue > 45f,
+                SensorType.PowerConsumption => sensor.CurrentValue > 80f,
+                _ => false
+            };
         }
 
         private void UpdateSensorValue(SensorConfig sensor)
         {
+            // IMPORTANT: Clamp BEFORE any changes to ensure we start from valid range
+            sensor.CurrentValue = Math.Clamp(sensor.CurrentValue, sensor.MinValue, sensor.MaxValue);
+
             // Add random walk with boundaries
             var change = (_random.NextSingle() - 0.5f) * 2f * sensor.ChangeRate;
             sensor.CurrentValue += change;
@@ -244,7 +283,7 @@ namespace SmartBuildingAPI.Services
                     break;
             }
 
-            // Clamp to min/max
+            // ALWAYS clamp to min/max after any changes
             sensor.CurrentValue = Math.Clamp(sensor.CurrentValue, sensor.MinValue, sensor.MaxValue);
         }
 
