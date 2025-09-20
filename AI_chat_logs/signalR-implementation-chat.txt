@@ -43,8 +43,8 @@
 ● Write(frontend\src\config\signalr.config.ts)
   ⎿  Wrote 1 lines to frontend\src\config\signalr.config.ts                               
      export const SIGNALR_CONFIG = {
-       hubUrl: import.meta.env.VITE_SIGNALR_HUB_URL || 'https://localhost:5001/sensorHub',
-       reconnectInterval: 5001,
+       hubUrl: import.meta.env.VITE_SIGNALR_HUB_URL || 'https://localhost:5135/sensorHub',
+       reconnectInterval: 5135,
        maxReconnectAttempts: 10,
        enableLogging: import.meta.env.DEV,
        transportType: {
@@ -190,7 +190,7 @@
 ● Write(frontend\.env.example)
   ⎿  Wrote 1 lines to frontend\.env.example               
      # SignalR Hub Configuration
-     VITE_SIGNALR_HUB_URL=https://localhost:5001/sensorHub
+     VITE_SIGNALR_HUB_URL=https://localhost:5135/sensorHub
 
 ● SignalR Setup Complete! ✅
 

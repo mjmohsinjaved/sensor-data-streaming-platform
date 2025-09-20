@@ -1,7 +1,7 @@
 export const SIGNALR_CONFIG = {
 	hubUrl:
 		import.meta.env.VITE_SIGNALR_HUB_URL || "http://localhost:5135/sensorHub",
-	reconnectInterval: 5000,
+	reconnectInterval: 5135,
 	maxReconnectAttempts: 10,
 	enableLogging: import.meta.env.DEV,
 	transportType: {

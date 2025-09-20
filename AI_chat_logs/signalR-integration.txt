@@ -482,7 +482,7 @@
 ● Write(frontend\src\services\api\SensorApiService.ts)
   ⎿  Wrote 1 lines to frontend\src\services\api\SensorApiService.ts                                   
      import { SensorType, type SensorReading, type SensorStatistics } from '../../types/sensor.types';
-     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5135';
      export interface ApiSensorReading {
        timestamp: number;
        sensorId: number;
@@ -497,10 +497,10 @@
 
 ● Update(frontend\.env)
   ⎿  Updated frontend\.env with 2 additions and 1 removal       
-       1 -  VITE_SIGNALR_HUB_URL=http://localhost:5000/sensorHub
+       1 -  VITE_SIGNALR_HUB_URL=http://localhost:5135/sensorHub
        1   \ No newline at end of file
-       2 +  VITE_SIGNALR_HUB_URL=http://localhost:5000/sensorHub
-       3 +  VITE_API_BASE_URL=http://localhost:5000
+       2 +  VITE_SIGNALR_HUB_URL=http://localhost:5135/sensorHub
+       3 +  VITE_API_BASE_URL=http://localhost:5135
        4   \ No newline at end of file
 
 ● Now let's update the Dashboard to optionally use REST API for initial data loading:
@@ -947,8 +947,8 @@
   @microsoft_signalr.js?v=2f059279:304 [2025-09-20T05:26:05.231Z] Debug: Starting connection with transfer format 
   'Text'.
   @microsoft_signalr.js?v=2f059279:304 [2025-09-20T05:26:05.232Z] Debug: Sending negotiation request: 
-  http://localhost:5000/sensorHub/negotiate?negotiateVersion=1.
-  :5000/sensorHub/negotiate?negotiateVersion=1:1  Failed to load resource: net::ERR_CONNECTION_REFUSEDUnderstand this 
+  http://localhost:5135/sensorHub/negotiate?negotiateVersion=1.
+  :5135/sensorHub/negotiate?negotiateVersion=1:1  Failed to load resource: net::ERR_CONNECTION_REFUSEDUnderstand this 
   error
   @microsoft_signalr.js?v=2f059279:298 [2025-09-20T05:26:07.568Z] Warning: Error from HTTP request. TypeError: Failed 
   to fetch.
@@ -999,7 +999,7 @@
       at async connectToHub (Dashboard.tsx:83:9)
 
 ● The error shows that the backend server is not running. The frontend is trying to connect to
-  http://localhost:5000/sensorHub but getting ERR_CONNECTION_REFUSED, which means the backend API is not available
+  http://localhost:5135/sensorHub but getting ERR_CONNECTION_REFUSED, which means the backend API is not available
   at that port.
 
   Let's start the backend server:
@@ -1040,14 +1040,14 @@
 
 
 ● The backend is trying to run on port 5135, but it's already in use. Let's check what's using that port and also
-  note that the frontend expects port 5000:
+  note that the frontend expects port 5135:
 
 ● Bash(netstat -ano | findstr :5135)
   ⎿  Interrupted · What should Claude do instead?
 
 > i closed it now try again that port
 
-● Bash(cd backend/SmartBuildingAPI && "C:\Program Files\dotnet\dotnet.exe" run --urls="http://localhost:5000")
+● Bash(cd backend/SmartBuildingAPI && "C:\Program Files\dotnet\dotnet.exe" run --urls="http://localhost:5135")
   ⎿  Running in the background (down arrow to manage)
 
 ● BashOutput(Reading shell output)
@@ -1062,8 +1062,8 @@
 
 ● Update(frontend\.env)
   ⎿  Updated frontend\.env with 2 additions and 2 removals      
-       1 -  VITE_SIGNALR_HUB_URL=http://localhost:5000/sensorHub
-       2 -  VITE_API_BASE_URL=http://localhost:5000
+       1 -  VITE_SIGNALR_HUB_URL=http://localhost:5135/sensorHub
+       2 -  VITE_API_BASE_URL=http://localhost:5135
        1   \ No newline at end of file
        2 +  VITE_SIGNALR_HUB_URL=http://localhost:5135/sensorHub
        3 +  VITE_API_BASE_URL=http://localhost:5135
