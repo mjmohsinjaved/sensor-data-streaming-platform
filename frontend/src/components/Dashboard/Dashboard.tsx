@@ -31,7 +31,7 @@ const Dashboard: React.FC = () => {
 	const [signalR] = useState(() => SignalRService.getInstance());
 	const [isConnected, setIsConnected] = useState(false);
 	const [selectedSensors, setSelectedSensors] = useState<Set<SensorType>>(
-		new Set([SensorType.Temperature, SensorType.Humidity])
+		new Set([SensorType.Temperature])
 	);
 
 	// Store aggregated statistics by sensor type
