@@ -7,9 +7,14 @@ interface StatisticsCardProps {
   sensorType: SensorType;
   statistics?: SensorStatistics;
   isActive: boolean;
+  additionalInfo?: {
+    trend: '→' | '↑' | '↓';
+    anomalyCount: number;
+    sensorCount: number;
+  };
 }
 
-const StatisticsCard: React.FC<StatisticsCardProps> = ({ sensorType, statistics, isActive }) => {
+const StatisticsCard: React.FC<StatisticsCardProps> = ({ sensorType, statistics, isActive, additionalInfo }) => {
   const config = SENSOR_CONFIG[sensorType];
   const current = statistics?.current ?? 0;
   const min = statistics?.min ?? config.min;
@@ -17,6 +22,18 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({ sensorType, statistics,
   const average = statistics?.average ?? 0;
 
   const getTrendIcon = () => {
+    // Use server-provided trend if available
+    if (additionalInfo?.trend) {
+      switch (additionalInfo.trend) {
+        case '↑':
+          return <TrendingUp className="h-4 w-4 text-green-400" />;
+        case '↓':
+          return <TrendingDown className="h-4 w-4 text-blue-400" />;
+        default:
+          return <Minus className="h-4 w-4 text-gray-400" />;
+      }
+    }
+
     if (!statistics || statistics.count < 2) return <Minus className="h-4 w-4 text-gray-500" />;
 
     const diff = current - average;
@@ -61,9 +78,16 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({ sensorType, statistics,
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center space-x-2">
           <span className="text-xl">{config.icon}</span>
-          <h3 className="text-sm font-semibold text-gray-300">
-            {config.label}
-          </h3>
+          <div>
+            <h3 className="text-sm font-semibold text-gray-300">
+              {config.label}
+            </h3>
+            {additionalInfo && (
+              <div className="text-xs text-gray-500">
+                {additionalInfo.sensorCount} sensors
+              </div>
+            )}
+          </div>
         </div>
         {getTrendIcon()}
       </div>
@@ -99,6 +123,15 @@ const StatisticsCard: React.FC<StatisticsCardProps> = ({ sensorType, statistics,
           </div>
         </div>
       </div>
+
+      {/* Anomaly Count if available */}
+      {additionalInfo && additionalInfo.anomalyCount > 0 && (
+        <div className="mt-2 text-xs">
+          <span className="text-yellow-400 font-medium">
+            {additionalInfo.anomalyCount} anomalies detected
+          </span>
+        </div>
+      )}
 
       {/* Progress Bar */}
       <div className="mt-3">

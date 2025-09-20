@@ -13,7 +13,7 @@ import {
   type ChartOptions,
 } from 'chart.js';
 import { format } from 'date-fns';
-import { type SensorReading, SensorType } from '../../types/sensor.types';
+import { SensorType } from '../../types/sensor.types';
 
 ChartJS.register(
   CategoryScale,
@@ -26,9 +26,17 @@ ChartJS.register(
   Filler
 );
 
+interface ChartDataPoint {
+  timestamp: number;
+  value: number;
+  min: number;
+  max: number;
+  average: number;
+}
+
 interface RealtimeChartProps {
   sensorType: SensorType;
-  data: SensorReading[];
+  data: ChartDataPoint[];
   config: {
     label: string;
     unit: string;
@@ -37,9 +45,15 @@ interface RealtimeChartProps {
     min: number;
     max: number;
   };
+  isAggregated?: boolean;
 }
 
-const RealtimeChart: React.FC<RealtimeChartProps> = ({ sensorType, data, config }) => {
+const RealtimeChart: React.FC<RealtimeChartProps> = ({
+  sensorType,
+  data,
+  config,
+  isAggregated = false
+}) => {
   const chartRef = useRef<ChartJS<'line'>>(null);
 
   // Debug logging
@@ -50,17 +64,61 @@ const RealtimeChart: React.FC<RealtimeChartProps> = ({ sensorType, data, config 
     }
   }, [data, sensorType]);
 
-  // Prepare chart data - show empty chart if no data
+  // Prepare chart data for aggregated data
   const chartData = {
     labels: data.length > 0
       ? data.map(d => format(new Date(d.timestamp), 'HH:mm:ss'))
       : [],
-    datasets: [
+    datasets: isAggregated ? [
+      {
+        label: `Current ${config.label} (${config.unit})`,
+        data: data.map(d => d.value),
+        borderColor: config.color,
+        backgroundColor: 'transparent',
+        tension: 0.4,
+        fill: false,
+        pointRadius: data.length > 50 ? 0 : 2,
+        pointHoverRadius: 4,
+        borderWidth: 2,
+      },
+      {
+        label: `Average ${config.label} (${config.unit})`,
+        data: data.map(d => d.average),
+        borderColor: `${config.color}88`,
+        backgroundColor: 'transparent',
+        tension: 0.4,
+        fill: false,
+        pointRadius: 0,
+        pointHoverRadius: 3,
+        borderWidth: 1,
+        borderDash: [5, 5],
+      },
+      {
+        label: `Min/Max Range`,
+        data: data.map(d => d.max),
+        borderColor: 'transparent',
+        backgroundColor: `${config.bgColor}`,
+        tension: 0.4,
+        fill: '+1',
+        pointRadius: 0,
+        pointHoverRadius: 0,
+        borderWidth: 0,
+      },
+      {
+        label: `Min`,
+        data: data.map(d => d.min),
+        borderColor: 'transparent',
+        backgroundColor: 'transparent',
+        tension: 0.4,
+        fill: false,
+        pointRadius: 0,
+        pointHoverRadius: 0,
+        borderWidth: 0,
+      },
+    ] : [
       {
         label: `${config.label} (${config.unit})`,
-        data: data.length > 0
-          ? data.map(d => d.value)
-          : [],
+        data: data.map(d => d.value),
         borderColor: config.color,
         backgroundColor: config.bgColor,
         tension: 0.4,
@@ -79,26 +137,58 @@ const RealtimeChart: React.FC<RealtimeChartProps> = ({ sensorType, data, config 
       duration: 200,
     },
     interaction: {
-      mode: 'nearest',
-      axis: 'x',
+      mode: 'index',
       intersect: false,
     },
     plugins: {
       legend: {
-        display: false,
+        display: isAggregated,
+        position: 'top',
+        labels: {
+          color: '#9ca3af',
+          usePointStyle: true,
+          pointStyle: 'circle',
+          padding: 15,
+          filter: (item) => {
+            // Only show Current and Average in legend
+            return item.text.includes('Current') || item.text.includes('Average');
+          },
+        },
       },
       tooltip: {
-        backgroundColor: 'rgba(17, 24, 39, 0.9)',
+        backgroundColor: 'rgba(17, 24, 39, 0.95)',
         titleColor: '#f3f4f6',
         bodyColor: '#f3f4f6',
         borderColor: config.color,
         borderWidth: 1,
         padding: 12,
-        displayColors: false,
+        displayColors: true,
         callbacks: {
-          label: (context) => {
-            return `${config.label}: ${context.parsed.y.toFixed(2)} ${config.unit}`;
+          title: (context) => {
+            const timestamp = data[context[0].dataIndex]?.timestamp;
+            return timestamp ? format(new Date(timestamp), 'HH:mm:ss') : '';
           },
+          label: (context) => {
+            if (isAggregated) {
+              const point = data[context.dataIndex];
+              if (!point) return '';
+
+              if (context.datasetIndex === 0) {
+                return `Current: ${point.value.toFixed(2)} ${config.unit}`;
+              } else if (context.datasetIndex === 1) {
+                return `Average: ${point.average.toFixed(2)} ${config.unit}`;
+              } else if (context.datasetIndex === 2) {
+                return `Range: ${point.min.toFixed(2)} - ${point.max.toFixed(2)} ${config.unit}`;
+              }
+              return '';
+            } else {
+              return `${config.label}: ${context.parsed.y.toFixed(2)} ${config.unit}`;
+            }
+          },
+        },
+        filter: (item) => {
+          // Only show relevant tooltips
+          return item.datasetIndex < 3;
         },
       },
     },
@@ -112,6 +202,7 @@ const RealtimeChart: React.FC<RealtimeChartProps> = ({ sensorType, data, config 
           color: '#9ca3af',
           maxRotation: 0,
           autoSkipPadding: 20,
+          maxTicksLimit: 10,
         },
       },
       y: {
@@ -132,7 +223,6 @@ const RealtimeChart: React.FC<RealtimeChartProps> = ({ sensorType, data, config 
   // Update chart when data changes
   useEffect(() => {
     if (chartRef.current) {
-      // Use 'none' mode for smooth updates without animation
       chartRef.current.update('none');
     }
   }, [data, chartData]);
@@ -142,8 +232,10 @@ const RealtimeChart: React.FC<RealtimeChartProps> = ({ sensorType, data, config 
     return (
       <div className="h-64 w-full flex items-center justify-center">
         <div className="text-center text-gray-500">
-          <div className="mb-2 text-sm">Waiting for data...</div>
-          <div className="text-xs text-gray-600">Data will appear once sensor readings are received</div>
+          <div className="mb-2 text-sm">Waiting for aggregated data...</div>
+          <div className="text-xs text-gray-600">
+            Data will appear once sensor readings are received
+          </div>
         </div>
       </div>
     );

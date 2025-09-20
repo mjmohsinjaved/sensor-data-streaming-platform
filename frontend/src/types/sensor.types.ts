@@ -31,6 +31,32 @@ export interface SensorStatistics {
   lastUpdated: string;
 }
 
+export interface AggregatedSensorData {
+  type: string;
+  unit: string;
+  average: number;
+  min: number;
+  max: number;
+  current: number;
+  trend: 'stable' | 'increasing' | 'decreasing';
+  trendSymbol: '→' | '↑' | '↓';
+  anomalyCount: number;
+  totalReadings: number;
+  sensorCount: number;
+}
+
+export interface AggregatedStats {
+  timestamp: number;
+  aggregated: AggregatedSensorData[];
+}
+
+export interface PerformanceStats {
+  connectedClients: number;
+  totalMessages: number;
+  messagesPerSecond: number;
+  timestamp: number;
+}
+
 export interface AnomalyAlert {
   id: string;
   sensorId: string;

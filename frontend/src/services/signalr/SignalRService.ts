@@ -5,13 +5,7 @@ import {
 	HubConnectionState,
 	type IHttpConnectionOptions,
 } from "@microsoft/signalr";
-import { SIGNALR_CONFIG, HUB_METHODS } from "../../config/signalr.config";
-import {
-	SensorType,
-	type SensorReading,
-	type SensorStatistics,
-	type AnomalyAlert,
-} from "../../types/sensor.types";
+import { SIGNALR_CONFIG } from "../../config/signalr.config";
 import type { ConnectionStatus } from "../../types/signalr.types";
 
 export type SignalREventHandler<T = any> = (data: T) => void;
@@ -122,77 +116,22 @@ export class SignalRService {
 	private registerServerMethods(): void {
 		if (!this.hubConnection) return;
 
-		// Register backend hub methods
-		// Handle batch sensor data from backend
+		// Register new aggregated events from backend
+		// Handle aggregated statistics (sent every second)
 		this.hubConnection.on(
-			"ReceiveSensorData",
-			(batch: any[]) => {
-				console.log('Received sensor data batch:', batch.length, 'readings');
-				// Process each reading in the batch
-				if (batch && batch.length > 0) {
-					batch.forEach(reading => {
-						this.emit(HUB_METHODS.RECEIVE_SENSOR_READING, reading);
-					});
-				}
+			"ReceiveAggregatedStats",
+			(data: any) => {
+				console.log('Received aggregated stats:', data);
+				this.emit('ReceiveAggregatedStats', data);
 			}
 		);
 
-		// Handle statistics update from backend
+		// Handle performance statistics (sent every second)
 		this.hubConnection.on(
-			"ReceiveStatistics",
-			(stats: any[]) => {
-				console.log('Received statistics:', stats);
-				// Transform statistics array to record format
-				if (stats && stats.length > 0) {
-					stats.forEach(stat => {
-						this.emit(HUB_METHODS.RECEIVE_STATISTICS_UPDATE, stat);
-					});
-				}
-			}
-		);
-
-		// Handle initial data when connecting
-		this.hubConnection.on(
-			"InitialData",
-			(data: { readings: any[], stats: any[], totalReadings: number }) => {
-				console.log('Received initial data:', data.totalReadings, 'total readings');
-				// Process initial readings
-				if (data.readings && data.readings.length > 0) {
-					data.readings.forEach(reading => {
-						this.emit(HUB_METHODS.RECEIVE_SENSOR_READING, reading);
-					});
-				}
-				// Process initial statistics
-				if (data.stats && data.stats.length > 0) {
-					const statsRecord: Record<string, any> = {};
-					data.stats.forEach(stat => {
-						// Use sensorId as key
-						statsRecord[stat.SensorId || stat.sensorId] = stat;
-					});
-					this.emit(HUB_METHODS.RECEIVE_INITIAL_STATISTICS, statsRecord);
-				}
-			}
-		);
-
-		// Handle recent readings response
-		this.hubConnection.on(
-			"RecentReadings",
-			(readings: any[]) => {
-				console.log('Received recent readings:', readings.length);
-				if (readings && readings.length > 0) {
-					readings.forEach(reading => {
-						this.emit(HUB_METHODS.RECEIVE_SENSOR_READING, reading);
-					});
-				}
-			}
-		);
-
-		// Handle sensor statistics response
-		this.hubConnection.on(
-			"SensorStatistics",
+			"ReceivePerformanceStats",
 			(stats: any) => {
-				console.log('Received sensor statistics:', stats);
-				this.emit(HUB_METHODS.RECEIVE_STATISTICS_UPDATE, stats);
+				console.log('Received performance stats:', stats);
+				this.emit('ReceivePerformanceStats', stats);
 			}
 		);
 	}
@@ -256,203 +195,24 @@ export class SignalRService {
 		}
 	}
 
-	public async subscribeToSensor(sensorId: string): Promise<void> {
-		if (!this.isConnected()) {
-			throw new Error("SignalR is not connected");
-		}
-
-		try {
-			await this.hubConnection!.invoke(
-				HUB_METHODS.SUBSCRIBE_TO_SENSOR,
-				sensorId
-			);
-			console.log(`Subscribed to sensor: ${sensorId}`);
-		} catch (error) {
-			console.error(`Failed to subscribe to sensor ${sensorId}:`, error);
-			throw error;
-		}
-	}
-
-	public async unsubscribeFromSensor(sensorId: string): Promise<void> {
-		if (!this.isConnected()) {
-			throw new Error("SignalR is not connected");
-		}
-
-		try {
-			await this.hubConnection!.invoke(
-				HUB_METHODS.UNSUBSCRIBE_FROM_SENSOR,
-				sensorId
-			);
-			console.log(`Unsubscribed from sensor: ${sensorId}`);
-		} catch (error) {
-			console.error(`Failed to unsubscribe from sensor ${sensorId}:`, error);
-			throw error;
-		}
-	}
-
-	public async getActiveSensors(): Promise<string[]> {
-		if (!this.isConnected()) {
-			throw new Error("SignalR is not connected");
-		}
-
-		try {
-			const sensors = await this.hubConnection!.invoke<string[]>(
-				HUB_METHODS.GET_ACTIVE_SENSORS
-			);
-			return sensors;
-		} catch (error) {
-			console.error("Failed to get active sensors:", error);
-			throw error;
-		}
-	}
 
 	// New methods for our sensor dashboard
 	public async connect(): Promise<void> {
 		await this.initialize();
 	}
 
-	public onSensorReading(callback: (reading: SensorReading) => void): void {
-		this.on(HUB_METHODS.RECEIVE_SENSOR_READING, callback);
+	public onAggregatedStats(callback: (data: any) => void): void {
+		this.on('ReceiveAggregatedStats', callback);
 	}
 
-	public onStatisticsUpdate(callback: (stats: SensorStatistics) => void): void {
-		this.on(HUB_METHODS.RECEIVE_STATISTICS_UPDATE, callback);
-	}
-
-	public onAnomalyAlert(callback: (alert: AnomalyAlert) => void): void {
-		this.on(HUB_METHODS.RECEIVE_ANOMALY_ALERT, callback);
-	}
-
-	public onInitialStatistics(
-		callback: (stats: Record<string, SensorStatistics>) => void
-	): void {
-		this.on(HUB_METHODS.RECEIVE_INITIAL_STATISTICS, callback);
-	}
-
-	public onRecentAlerts(callback: (alerts: AnomalyAlert[]) => void): void {
-		this.on(HUB_METHODS.RECEIVE_RECENT_ALERTS, callback);
+	public onPerformanceStats(callback: (stats: any) => void): void {
+		this.on('ReceivePerformanceStats', callback);
 	}
 
 	public onConnectionStateChanged(callback: (connected: boolean) => void): void {
 		this.on("connectionStateChanged", callback);
 	}
 
-	public async subscribeToSensorType(sensorType: SensorType): Promise<void> {
-		// Wait a moment for connection to stabilize if just connected
-		if (this.hubConnection?.state === HubConnectionState.Connecting) {
-			await new Promise(resolve => setTimeout(resolve, 500));
-		}
-
-		if (!this.isConnected() || !this.hubConnection) {
-			console.warn("SignalR is not connected, skipping subscription");
-			return;
-		}
-
-		try {
-			// Convert string enum to numeric value for backend
-			const sensorTypeValue = this.getSensorTypeValue(sensorType);
-			await this.hubConnection.invoke(
-				"SubscribeToSensorType",
-				sensorTypeValue
-			);
-			console.log(`Subscribed to sensor type: ${sensorType} (${sensorTypeValue})`);
-		} catch (error) {
-			console.error(`Failed to subscribe to sensor type ${sensorType}:`, error);
-			throw error;
-		}
-	}
-
-	public async unsubscribeFromSensorType(
-		sensorType: SensorType
-	): Promise<void> {
-		if (!this.isConnected()) {
-			throw new Error("SignalR is not connected");
-		}
-
-		try {
-			// Convert string enum to numeric value for backend
-			const sensorTypeValue = this.getSensorTypeValue(sensorType);
-			await this.hubConnection!.invoke(
-				"UnsubscribeFromSensorType",
-				sensorTypeValue
-			);
-			console.log(`Unsubscribed from sensor type: ${sensorType} (${sensorTypeValue})`);
-		} catch (error) {
-			console.error(
-				`Failed to unsubscribe from sensor type ${sensorType}:`,
-				error
-			);
-			throw error;
-		}
-	}
-
-	public async getHistoricalData(
-		sensorType: SensorType,
-		count: number = 100
-	): Promise<void> {
-		if (!this.isConnected()) {
-			throw new Error("SignalR is not connected");
-		}
-
-		try {
-			// Use GetRecentReadings method from backend
-			await this.hubConnection!.invoke(
-				"GetRecentReadings",
-				count
-			);
-		} catch (error) {
-			console.error("Failed to get historical data:", error);
-			throw error;
-		}
-	}
-
-	public async getStatistics(_sensorType?: SensorType): Promise<void> {
-		if (!this.isConnected()) {
-			throw new Error("SignalR is not connected");
-		}
-
-		try {
-			// Backend expects sensorId, not type - for now, get all stats
-			await this.hubConnection!.invoke("GetRecentReadings", 100);
-		} catch (error) {
-			console.error("Failed to get statistics:", error);
-			throw error;
-		}
-	}
-
-	public async getRecentAlerts(count: number = 50): Promise<void> {
-		if (!this.isConnected()) {
-			throw new Error("SignalR is not connected");
-		}
-
-		try {
-			await this.hubConnection!.invoke(HUB_METHODS.GET_RECENT_ALERTS, count);
-		} catch (error) {
-			console.error("Failed to get recent alerts:", error);
-			throw error;
-		}
-	}
-
-	public async requestHistoricalData(
-		sensorId: string,
-		startTime: Date,
-		endTime: Date
-	): Promise<void> {
-		if (!this.isConnected()) {
-			throw new Error("SignalR is not connected");
-		}
-
-		try {
-			await this.hubConnection!.invoke(HUB_METHODS.REQUEST_HISTORICAL_DATA, {
-				sensorId,
-				startTime: startTime.toISOString(),
-				endTime: endTime.toISOString(),
-			});
-		} catch (error) {
-			console.error("Failed to request historical data:", error);
-			throw error;
-		}
-	}
 
 	public on<T = any>(event: string, handler: SignalREventHandler<T>): void {
 		if (!this.eventHandlers.has(event)) {
@@ -503,17 +263,5 @@ export class SignalRService {
 
 	public getConnection(): HubConnection | null {
 		return this.hubConnection;
-	}
-
-	// Helper method to convert SensorType string enum to backend numeric value
-	private getSensorTypeValue(sensorType: SensorType): number {
-		const mapping: Record<SensorType, number> = {
-			[SensorType.Temperature]: 1,
-			[SensorType.Humidity]: 2,
-			[SensorType.CO2]: 3,
-			[SensorType.Occupancy]: 4,
-			[SensorType.PowerConsumption]: 5
-		};
-		return mapping[sensorType];
 	}
 }

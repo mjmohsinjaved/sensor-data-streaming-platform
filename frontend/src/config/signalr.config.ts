@@ -12,22 +12,8 @@ export const SIGNALR_CONFIG = {
 } as const;
 
 export const HUB_METHODS = {
-	// Server -> Client methods
-	RECEIVE_SENSOR_READING: "ReceiveSensorReading",
-	RECEIVE_STATISTICS_UPDATE: "ReceiveStatisticsUpdate",
+	// Server -> Client methods (New aggregated events)
+	RECEIVE_AGGREGATED_STATS: "ReceiveAggregatedStats",
+	RECEIVE_PERFORMANCE_STATS: "ReceivePerformanceStats",
 	RECEIVE_ANOMALY_ALERT: "ReceiveAnomalyAlert",
-	RECEIVE_INITIAL_STATISTICS: "ReceiveInitialStatistics",
-	RECEIVE_RECENT_ALERTS: "ReceiveRecentAlerts",
-	RECEIVE_HISTORICAL_DATA: "ReceiveHistoricalData",
-
-	// Client -> Server methods
-	SUBSCRIBE_TO_SENSOR: "SubscribeToSensor",
-	UNSUBSCRIBE_FROM_SENSOR: "UnsubscribeFromSensor",
-	GET_ACTIVE_SENSORS: "GetActiveSensors",
-	SUBSCRIBE_TO_SENSOR_TYPE: "SubscribeToSensorType",
-	UNSUBSCRIBE_FROM_SENSOR_TYPE: "UnsubscribeFromSensorType",
-	GET_HISTORICAL_DATA: "GetHistoricalData",
-	GET_STATISTICS: "GetStatistics",
-	GET_RECENT_ALERTS: "GetRecentAlerts",
-	REQUEST_HISTORICAL_DATA: "RequestHistoricalData",
 } as const;
