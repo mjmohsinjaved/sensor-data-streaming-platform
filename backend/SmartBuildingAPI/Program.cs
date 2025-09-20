@@ -20,6 +20,7 @@ builder.Services.AddSwaggerGen();
 // Register sensor services
 builder.Services.AddSingleton<ISensorDataStore, SensorDataStore>();
 builder.Services.AddSingleton<IPerformanceMonitor, PerformanceMonitor>();
+builder.Services.AddSingleton<IAggregationService, AggregationService>();
 builder.Services.AddHostedService<SensorGenerator>();
 
 // Add SignalR
@@ -35,9 +36,10 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.SetIsOriginAllowed(_ => true)  // Allow any origin
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()
+              .AllowCredentials();  // Required for SignalR
     });
 });
 
