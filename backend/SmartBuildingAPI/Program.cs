@@ -66,6 +66,7 @@ app.MapGet("/", () => Results.Ok(new
         "/swagger - API Documentation",
         "/sensorHub - SignalR Hub",
         "/api/sensors/stats - Get all sensor statistics",
+        "/api/sensors/aggregated - Get aggregated stats by type with trends",
         "/api/sensors/recent?count=100 - Get recent readings",
         "/api/sensors/{id}/current - Get current sensor value",
         "/api/sensors/performance - Real-time performance metrics",

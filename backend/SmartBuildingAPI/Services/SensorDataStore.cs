@@ -172,5 +172,14 @@ namespace SmartBuildingAPI.Services
             var currentIndex = Volatile.Read(ref _writeIndex);
             return (int)Math.Min(currentIndex + 1, BufferSize);
         }
+
+        public void Reset()
+        {
+            // Reset the write index
+            Interlocked.Exchange(ref _writeIndex, -1);
+
+            // Clear the buffer (optional, but helps with debugging)
+            Array.Clear(_buffer, 0, _buffer.Length);
+        }
     }
 }

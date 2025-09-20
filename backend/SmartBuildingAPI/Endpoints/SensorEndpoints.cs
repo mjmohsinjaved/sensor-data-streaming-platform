@@ -171,6 +171,121 @@ namespace SmartBuildingAPI.Endpoints
             .WithName("GetFloorReadings")
             .WithSummary("Get recent readings for a specific floor");
 
+            // Get aggregated statistics by sensor type with trends
+            sensors.MapGet("/aggregated", (ISensorDataStore dataStore) =>
+            {
+                var allReadings = dataStore.GetRecent(60000); // Get last 60 seconds of data (at 1000/sec = 60k readings)
+
+                if (allReadings.Length == 0)
+                {
+                    return Results.Ok(new
+                    {
+                        timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                        message = "No data available",
+                        aggregated = Array.Empty<object>()
+                    });
+                }
+
+                // Split readings into recent (last 30s) and older (previous 30s)
+                // Note: allReadings[0] is most recent, so Take gets recent, Skip gets older
+                var midpoint = allReadings.Length / 2;
+                var recentReadings = allReadings.Take(midpoint).ToArray();  // First half (most recent 30s)
+                var olderReadings = allReadings.Skip(midpoint).ToArray();  // Second half (older 30s)
+
+                // Group by sensor type
+                var aggregatedStats = Enum.GetValues<SensorType>()
+                    .Select<SensorType, object>(sensorType =>
+                    {
+                        // Get all readings for this type
+                        var typeReadings = allReadings.Where(r => GetSensorTypeFromId(r.SensorId) == sensorType).ToArray();
+                        var recentTypeReadings = recentReadings.Where(r => GetSensorTypeFromId(r.SensorId) == sensorType).ToArray();
+                        var olderTypeReadings = olderReadings.Where(r => GetSensorTypeFromId(r.SensorId) == sensorType).ToArray();
+
+                        if (typeReadings.Length == 0)
+                        {
+                            return new
+                            {
+                                type = sensorType.ToString(),
+                                unit = SensorMetadata.GetUnit(sensorType),
+                                average = 0f,
+                                min = 0f,
+                                max = 0f,
+                                current = 0f,
+                                trend = "no_data",
+                                trendSymbol = "—",
+                                anomalyCount = 0,
+                                totalReadings = 0,
+                                sensorCount = 0
+                            };
+                        }
+
+                        // Calculate statistics
+                        var values = typeReadings.Select(r => r.Value).ToArray();
+                        var average = values.Average();
+                        var min = values.Min();
+                        var max = values.Max();
+                        var current = typeReadings.First().Value; // Most recent
+
+                        // Calculate trend
+                        var trend = "stable";
+                        var trendSymbol = "→";
+
+                        if (recentTypeReadings.Length > 0 && olderTypeReadings.Length > 0)
+                        {
+                            var recentAvg = recentTypeReadings.Average(r => r.Value);
+                            var olderAvg = olderTypeReadings.Average(r => r.Value);
+                            var percentChange = ((recentAvg - olderAvg) / olderAvg) * 100;
+
+                            if (percentChange > 2)
+                            {
+                                trend = "increasing";
+                                trendSymbol = "↑";
+                            }
+                            else if (percentChange < -2)
+                            {
+                                trend = "decreasing";
+                                trendSymbol = "↓";
+                            }
+                        }
+
+                        // Count anomalies
+                        var anomalyCount = typeReadings.Count(r => r.IsAnomaly);
+
+                        // Count unique sensors
+                        var sensorCount = typeReadings.Select(r => r.SensorId).Distinct().Count();
+
+                        return new
+                        {
+                            type = sensorType.ToString(),
+                            unit = SensorMetadata.GetUnit(sensorType),
+                            average = Math.Round(average, 2),
+                            min = Math.Round(min, 2),
+                            max = Math.Round(max, 2),
+                            current = Math.Round(current, 2),
+                            trend = trend,
+                            trendSymbol = trendSymbol,
+                            anomalyCount = anomalyCount,
+                            totalReadings = typeReadings.Length,
+                            sensorCount = sensorCount
+                        };
+                    })
+                    .Where(stat => ((dynamic)stat).totalReadings > 0) // Only include types with data
+                    .ToArray();
+
+                return Results.Ok(new
+                {
+                    timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                    timeWindow = new
+                    {
+                        seconds = 60,
+                        trendComparison = "Last 30s vs Previous 30s"
+                    },
+                    aggregated = aggregatedStats
+                });
+            })
+            .WithName("GetAggregatedStatistics")
+            .WithSummary("Get aggregated statistics by sensor type with trend analysis");
+
             // Get available sensor types
             sensors.MapGet("/types", () =>
             {
@@ -292,6 +407,59 @@ namespace SmartBuildingAPI.Endpoints
             })
             .WithName("ResetPerformance")
             .WithSummary("Reset performance counters");
+
+            // Diagnostic endpoint to check sensor mappings
+            sensors.MapGet("/diagnostic", (ISensorDataStore dataStore) =>
+            {
+                var recent = dataStore.GetRecent(50);
+                var samplesByType = recent
+                    .GroupBy(r => GetSensorTypeFromId(r.SensorId))
+                    .Select(g => new
+                    {
+                        Type = g.Key.ToString(),
+                        SensorIds = g.Select(r => r.SensorId).Distinct().OrderBy(id => id).ToArray(),
+                        SampleValues = g.Take(5).Select(r => new { r.SensorId, r.Value }).ToArray()
+                    })
+                    .ToArray();
+
+                return Results.Ok(new
+                {
+                    timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                    totalReadings = dataStore.GetTotalReadings(),
+                    sensorTypeMapping = new
+                    {
+                        temperature = "IDs 1-10",
+                        humidity = "IDs 11-20",
+                        co2 = "IDs 21-30",
+                        occupancy = "IDs 31-40",
+                        power = "IDs 41-50"
+                    },
+                    actualDataByType = samplesByType
+                });
+            })
+            .WithName("DiagnosticInfo")
+            .WithSummary("Diagnostic information for debugging sensor data");
+
+            // Reset data store (for testing/debugging)
+            sensors.MapPost("/reset", (ISensorDataStore dataStore, IPerformanceMonitor perfMonitor, ILogger<Program> logger) =>
+            {
+                logger.LogWarning("Resetting data store and performance counters");
+                dataStore.Reset();
+                perfMonitor.Reset();
+
+                // Verify reset worked
+                var totalAfterReset = dataStore.GetTotalReadings();
+
+                return Results.Ok(new
+                {
+                    message = "Data store and performance counters have been reset",
+                    totalReadingsAfterReset = totalAfterReset,
+                    timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                    warning = "This is a debugging endpoint - remove in production"
+                });
+            })
+            .WithName("ResetDataStore")
+            .WithSummary("Reset all sensor data (debugging only)");
         }
 
         // Helper method to determine sensor type from ID

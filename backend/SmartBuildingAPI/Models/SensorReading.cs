@@ -25,6 +25,18 @@ namespace SmartBuildingAPI.Models
             IsAnomaly = DetectAnomaly(type, value);
         }
 
+        // Overloaded constructor that accepts anomaly flag
+        public SensorReading(ushort sensorId, float value, SensorType type, byte floor, byte zone, bool isAnomaly)
+        {
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            SensorId = sensorId;
+            Value = value;
+            Type = type;
+            Floor = floor;
+            Zone = zone;
+            IsAnomaly = isAnomaly;
+        }
+
         private static bool DetectAnomaly(SensorType type, float value)
         {
             return type switch
